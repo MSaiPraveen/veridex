@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@veridex/roles-permissions": ["../../packages/roles-permissions/src"],
+      "@veridex/event-contracts": ["../../packages/event-contracts/src"],
+      "@veridex/api-contracts": ["../../packages/api-contracts/src"]
+    },
+    "typeRoots": [
+      "./src/types",
+      "./node_modules/@types"
+    ]
+  },
+  "references": [
+    { "path": "../../packages/roles-permissions" },
+    { "path": "../../packages/event-contracts" },
+    { "path": "../../packages/api-contracts" }
+  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

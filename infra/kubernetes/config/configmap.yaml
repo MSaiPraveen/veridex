@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: veridex-config
+  namespace: veridex
+data:
+  # Environment
+  NODE_ENV: "production"
+
+  # Service Discovery (internal Kubernetes DNS)
+  AUTH_SERVICE_URL: "http://auth-service:3001"
+  USER_ORG_SERVICE_URL: "http://user-org-service:3003"
+  PRODUCT_SERVICE_URL: "http://product-service:3004"
+  DOCUMENT_SERVICE_URL: "http://document-service:3005"
+  COMPLIANCE_SERVICE_URL: "http://compliance-service:3006"
+  NOTIFICATION_SERVICE_URL: "http://notification-service:3007"
+  AUDIT_SERVICE_URL: "http://audit-log-service:3008"
+
+  # Kafka Topics
+  KAFKA_TOPIC_AUTH: "auth.events"
+  KAFKA_TOPIC_PRODUCTS: "product.events"
+  KAFKA_TOPIC_DOCUMENTS: "document.events"
+  KAFKA_TOPIC_COMPLIANCE: "compliance.events"
+  KAFKA_TOPIC_AUDIT: "audit.events"
+
+  # Rate Limiting
+  RATE_LIMIT_MAX: "100"
+  RATE_LIMIT_WINDOW_MS: "60000"
+
+  # Logging
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # CORS
+  CORS_ORIGIN: "https://app.veridex.io"

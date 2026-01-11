@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+
+    "paths": {
+      "@veridex/roles-permissions": ["./packages/roles-permissions/src/index.ts"],
+      "@veridex/event-contracts": ["./packages/event-contracts/src/index.ts"],
+      "@veridex/api-contracts": ["./packages/api-contracts/src/index.ts"],
+      "@veridex/schemas": ["./packages/schemas/src/index.ts"],
+      "@veridex/compliance-rules": ["./packages/compliance-rules/src/index.ts"]
+    }
+  }
+}

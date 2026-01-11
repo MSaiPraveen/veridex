@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@veridex/roles-permissions": ["../../packages/roles-permissions/src"],
+      "@veridex/event-contracts": ["../../packages/event-contracts/src"],
+      "@veridex/api-contracts": ["../../packages/api-contracts/src"],
+      "@veridex/schemas": ["../../packages/schemas/src"],
+      "@veridex/shared": ["../../packages/shared/src"]
+    },
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../../packages/roles-permissions" },
+    { "path": "../../packages/event-contracts" },
+    { "path": "../../packages/api-contracts" },
+    { "path": "../../packages/shared" }
+  ]
+}

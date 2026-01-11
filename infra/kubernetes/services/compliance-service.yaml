@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service
+  namespace: veridex
+  labels:
+    app: compliance-service
+spec:
+  ports:
+    - port: 3006
+      targetPort: 3006
+      protocol: TCP
+  selector:
+    app: compliance-service
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+  namespace: veridex
+  labels:
+    app: compliance-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliance-service
+  template:
+    metadata:
+      labels:
+        app: compliance-service
+    spec:
+      containers:
+        - name: compliance-service
+          image: veridex/compliance-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3006
+          envFrom:
+            - secretRef:
+                name: veridex-secrets
+            - configMapRef:
+                name: veridex-config
+          env:
+            - name: PORT
+              value: "3006"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: veridex-secrets
+                  key: MONGO_COMPLIANCE_URI
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3006
+            initialDelaySeconds: 5
+            periodSeconds: 5

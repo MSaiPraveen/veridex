@@ -1,0 +1,25 @@
+{
+  "name": "@veridex/scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seed and utility scripts for Veridex platform",
+  "type": "commonjs",
+  "scripts": {
+    "seed": "ts-node seed/index.ts",
+    "seed:consumers": "ts-node -e \"require('./seed/consumers.seed').seedConsumers()\"",
+    "seed:merchants": "ts-node -e \"require('./seed/merchants.seed').seedMerchants()\"",
+    "seed:products": "ts-node -e \"require('./seed/products.seed').seedProducts()\"",
+    "seed:documents": "ts-node -e \"require('./seed/documents.seed').seedDocuments()\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.6.1",
+    "mongoose": "^8.20.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.19.27",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

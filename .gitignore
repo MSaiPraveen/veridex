@@ -1,0 +1,119 @@
+# ===========================================
+# VERIDEX - Git Ignore Configuration
+# ===========================================
+
+# ===========================================
+# ENVIRONMENT & SECRETS (CRITICAL)
+# ===========================================
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+.secrets
+
+# ===========================================
+# DEPENDENCIES
+# ===========================================
+node_modules/
+.pnp
+.pnp.js
+
+# ===========================================
+# BUILD OUTPUT
+# ===========================================
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+.turbo
+
+# ===========================================
+# TESTING
+# ===========================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ===========================================
+# DEBUG & LOGS
+# ===========================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+logs/
+*.txt
+!README.txt
+
+# ===========================================
+# IDE & EDITORS
+# ===========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ===========================================
+# OS FILES
+# ===========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ===========================================
+# DOCKER
+# ===========================================
+docker-compose.override.yml
+.docker/
+
+# ===========================================
+# TEMP & CACHE
+# ===========================================
+*.cache
+.cache/
+.temp/
+tmp/
+temp/
+*.tmp
+
+# ===========================================
+# DEBUG ARTIFACTS (Project-specific)
+# ===========================================
+*-logs.txt
+*_dump*.txt
+*_output.txt
+*-response.json
+reproduction_test.js
+fetch-products.js
+
+# Debug JSON files
+abo-user.json
+all-orgs.json
+auth-users.json
+orgs.json
+products-response.json
+docker-status.txt
+
+# ===========================================
+# UPLOADS & GENERATED FILES
+# ===========================================
+uploads/
+/apps/document-service/uploads/
+
+# ===========================================
+# MISC
+# ===========================================
+*.pid
+*.seed
+*.pid.lock

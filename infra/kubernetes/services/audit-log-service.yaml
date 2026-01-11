@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-log-service
+  namespace: veridex
+  labels:
+    app: audit-log-service
+spec:
+  ports:
+    - port: 3008
+      targetPort: 3008
+      protocol: TCP
+  selector:
+    app: audit-log-service
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-log-service
+  namespace: veridex
+  labels:
+    app: audit-log-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit-log-service
+  template:
+    metadata:
+      labels:
+        app: audit-log-service
+    spec:
+      containers:
+        - name: audit-log-service
+          image: veridex/audit-log-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3008
+          envFrom:
+            - secretRef:
+                name: veridex-secrets
+            - configMapRef:
+                name: veridex-config
+          env:
+            - name: PORT
+              value: "3008"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: veridex-secrets
+                  key: MONGO_AUDIT_URI
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3008
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3008
+            initialDelaySeconds: 5
+            periodSeconds: 5

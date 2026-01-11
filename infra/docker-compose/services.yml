@@ -1,0 +1,104 @@
+version: "3.8"
+
+services:
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: veridex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api-gateway:
+    build: ../../apps/api-gateway
+    container_name: veridex-api-gateway
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../../apps/api-gateway/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      user-org-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+    restart: unless-stopped
+
+  auth-service:
+    build: ../../apps/auth-service
+    container_name: veridex-auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ../../apps/auth-service/.env
+    restart: unless-stopped
+
+  user-org-service:
+    build: ../../apps/user-org-service
+    container_name: veridex-user-org-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ../../apps/user-org-service/.env
+    restart: unless-stopped
+
+  product-service:
+    build: ../../apps/product-service
+    container_name: veridex-product-service
+    ports:
+      - "3004:3004"
+    env_file:
+      - ../../apps/product-service/.env
+    restart: unless-stopped
+
+  document-service:
+    build: ../../apps/document-service
+    container_name: veridex-document-service
+    ports:
+      - "3005:3005"
+    env_file:
+      - ../../apps/document-service/.env
+    restart: unless-stopped
+
+  compliance-service:
+    build: ../../apps/compliance-service
+    container_name: veridex-compliance-service
+    ports:
+      - "3006:3006"
+    env_file:
+      - ../../apps/compliance-service/.env
+    restart: unless-stopped
+
+  notification-service:
+    build: ../../apps/notification-service
+    container_name: veridex-notification-service
+    ports:
+      - "3007:3007"
+    env_file:
+      - ../../apps/notification-service/.env
+    restart: unless-stopped
+
+  audit-log-service:
+    build: ../../apps/audit-log-service
+    container_name: veridex-audit-log-service
+    ports:
+      - "3008:3008"
+    env_file:
+      - ../../apps/audit-log-service/.env
+    restart: unless-stopped
+
+volumes:
+  redis_data:

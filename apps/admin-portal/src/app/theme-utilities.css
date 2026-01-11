@@ -1,0 +1,347 @@
+/* =========================================
+   THEME UTILITIES - Override hardcoded colors
+   These styles override Tailwind's hardcoded colors
+   with CSS variable equivalents for dark mode support
+   PRIORITY: Ensure WCAG AA contrast ratios
+   ========================================= */
+
+/* ====== LIGHT MODE - Default (NO .dark class) ====== */
+
+/* PRIMARY TEXT COLORS - Headings, Primary Content */
+.text-slate-900,
+.text-gray-900,
+.text-black { 
+  color: var(--text-primary) !important; 
+}
+
+/* SECONDARY TEXT - Labels, Descriptions */
+.text-slate-700,
+.text-slate-600,
+.text-gray-700,
+.text-gray-600 { 
+  color: var(--text-secondary) !important; 
+}
+
+/* TERTIARY TEXT - Subtle Labels, Captions */
+.text-slate-500,
+.text-slate-400,
+.text-gray-500,
+.text-gray-400,
+.text-slate-300 { 
+  color: var(--text-muted) !important; 
+}
+
+/* DISABLED TEXT */
+.text-slate-200,
+.text-gray-300 { 
+  color: var(--text-disabled) !important; 
+}
+
+/* INVERTED TEXT (White) - Use with colored backgrounds */
+.text-white { 
+  color: var(--text-inverse) !important; 
+}
+
+/* ====== LIGHT MODE BACKGROUNDS ====== */
+.bg-white,
+.bg-slate-50,
+.bg-gray-50 { 
+  background-color: var(--surface-elevated) !important; 
+}
+
+.bg-slate-100,
+.bg-gray-100 { 
+  background-color: var(--surface-muted) !important; 
+}
+
+.bg-slate-200,
+.bg-gray-200 { 
+  background-color: var(--surface) !important; 
+}
+
+.bg-slate-800,
+.bg-gray-800 { 
+  background-color: var(--surface) !important; 
+}
+
+.bg-slate-900,
+.bg-gray-900 { 
+  background-color: var(--background) !important; 
+}
+
+.bg-slate-900\/50,
+.bg-slate-800\/50,
+.bg-gray-900\/50 { 
+  background-color: color-mix(in srgb, var(--background) 50%, transparent) !important; 
+}
+
+.bg-slate-700\/50,
+.bg-gray-700\/50 { 
+  background-color: color-mix(in srgb, var(--surface) 50%, transparent) !important; 
+}
+
+/* ====== LIGHT MODE BORDERS ====== */
+.border-slate-200,
+.border-slate-300,
+.border-gray-200,
+.border-gray-300 { 
+  border-color: var(--border) !important; 
+}
+
+.border-slate-700,
+.border-gray-700 { 
+  border-color: var(--border) !important; 
+}
+
+/* ====== LIGHT MODE HOVER STATES ====== */
+.hover\:bg-slate-50:hover,
+.hover\:bg-gray-50:hover,
+.hover\:bg-slate-100:hover,
+.hover\:bg-gray-100:hover { 
+  background-color: var(--surface-muted) !important; 
+}
+
+.hover\:bg-slate-200:hover,
+.hover\:bg-gray-200:hover,
+.hover\:bg-slate-700:hover,
+.hover\:bg-gray-700:hover { 
+  background-color: var(--surface) !important; 
+}
+
+.hover\:text-slate-900:hover,
+.hover\:text-gray-900:hover { 
+  color: var(--text-primary) !important; 
+}
+
+.hover\:text-slate-700:hover,
+.hover\:text-gray-700:hover { 
+  color: var(--text-secondary) !important; 
+}
+
+/* ====== DARK MODE (.dark class) - Override everything for proper contrast ====== */
+
+.dark .text-slate-900,
+.dark .text-gray-900,
+.dark .text-black { 
+  color: var(--text-primary) !important; 
+}
+
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-gray-700,
+.dark .text-gray-600 { 
+  color: var(--text-secondary) !important; 
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-slate-300 { 
+  color: var(--text-muted) !important; 
+}
+
+.dark .text-slate-200,
+.dark .text-gray-300 { 
+  color: var(--text-disabled) !important; 
+}
+
+.dark .text-white { 
+  color: var(--text-inverse) !important; 
+}
+
+.dark .text-slate-400,
+.dark .text-gray-400 { 
+  color: var(--text-muted) !important; 
+}
+
+/* Dark Mode Backgrounds */
+.dark .bg-white,
+.dark .bg-slate-50,
+.dark .bg-gray-50 { 
+  background-color: var(--surface-elevated) !important; 
+}
+
+.dark .bg-slate-100,
+.dark .bg-gray-100 { 
+  background-color: var(--surface-muted) !important; 
+}
+
+.dark .bg-slate-200,
+.dark .bg-gray-200 { 
+  background-color: var(--surface) !important; 
+}
+
+.dark .bg-slate-800,
+.dark .bg-slate-900\/50,
+.dark .bg-gray-800 { 
+  background-color: var(--surface) !important; 
+}
+
+.dark .bg-slate-900 { 
+  background-color: var(--background) !important; 
+}
+
+.dark .bg-slate-900\/50,
+.dark .bg-gray-900\/50 { 
+  background-color: color-mix(in srgb, var(--background) 50%, transparent) !important; 
+}
+
+.dark .bg-slate-700\/50,
+.dark .bg-gray-700\/50 { 
+  background-color: color-mix(in srgb, var(--surface) 50%, transparent) !important; 
+}
+
+/* Dark Mode Borders */
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-gray-200,
+.dark .border-gray-300 { 
+  border-color: var(--border) !important; 
+}
+
+.dark .border-slate-700,
+.dark .border-gray-700 { 
+  border-color: var(--border) !important; 
+}
+
+/* Dark Mode Hover */
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-gray-50:hover { 
+  background-color: var(--surface-muted) !important; 
+}
+
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-700:hover,
+.dark .hover\:bg-gray-700:hover { 
+  background-color: var(--surface) !important; 
+}
+
+.dark .hover\:text-slate-900:hover,
+.dark .hover\:text-gray-900:hover { 
+  color: var(--text-primary) !important; 
+}
+
+.dark .hover\:text-slate-700:hover,
+.dark .hover\:text-gray-700:hover { 
+  color: var(--text-secondary) !important; 
+}
+
+/* ====== STATUS COLORS - Apply across themes ====== */
+.text-red-600,
+.text-emerald-400,
+.text-emerald-600,
+.text-amber-400,
+.text-amber-600,
+.text-blue-600 { 
+  color: inherit !important; 
+}
+
+.dark .text-red-600 { color: var(--error) !important; }
+.dark .text-emerald-400,
+.dark .text-emerald-600 { color: var(--success) !important; }
+.dark .text-amber-400,
+.dark .text-amber-600 { color: var(--warning) !important; }
+.dark .text-blue-600 { color: var(--info) !important; }
+
+.bg-red-50 { background-color: var(--error-bg) !important; }
+.bg-emerald-50 { background-color: var(--success-bg) !important; }
+.bg-amber-50 { background-color: var(--warning-bg) !important; }
+.bg-blue-50 { background-color: var(--info-bg) !important; }
+
+.dark .bg-red-50 { background-color: var(--error-bg) !important; }
+.dark .bg-emerald-50 { background-color: var(--success-bg) !important; }
+.dark .bg-amber-50 { background-color: var(--warning-bg) !important; }
+.dark .bg-blue-50 { background-color: var(--info-bg) !important; }
+
+/* ====== FORM INPUTS - Ensure contrast ====== */
+input,
+select,
+textarea {
+  background-color: var(--surface-elevated) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px var(--primary-light) !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--border-focus) !important;
+}
+
+/* ====== CARDS & CONTAINERS ====== */
+.rounded-xl {
+  border-color: var(--border) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+.dark .rounded-xl {
+  border-color: var(--border) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+/* ====== BUTTON STATES ====== */
+button {
+  color: inherit;
+  background-color: inherit;
+  border-color: inherit;
+}
+
+button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* ====== TABLE HEADERS ====== */
+th {
+  color: var(--text-muted) !important;
+  background-color: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+}
+
+.dark th {
+  color: var(--text-muted) !important;
+  background-color: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+}
+
+/* ====== CODE/MONOSPACE BLOCKS ====== */
+code,
+pre {
+  background-color: var(--surface-muted) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+.dark code,
+.dark pre {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}

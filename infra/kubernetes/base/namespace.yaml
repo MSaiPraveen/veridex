@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: veridex
+  labels:
+    app.kubernetes.io/name: veridex
+    app.kubernetes.io/part-of: veridex-platform

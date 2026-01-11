@@ -1,0 +1,30 @@
+{
+  "name": "veridex",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:packages": "tsc --build packages/roles-permissions packages/event-contracts packages/api-contracts packages/schemas",
+    "dev:gateway": "npm run dev --workspace=api-gateway",
+    "dev:auth": "npm run dev --workspace=auth-service",
+    "dev:product": "npm run dev --workspace=product-service",
+    "dev:document": "npm run dev --workspace=document-service",
+    "dev:compliance": "npm run dev --workspace=compliance-service",
+    "dev:audit": "npm run dev --workspace=audit-log-service",
+    "dev:notification": "npm run dev --workspace=notification-service",
+    "dev:user": "npm run dev --workspace=user-org-service",
+    "dev:frontend": "npm run dev --workspace=frontend-dashboard",
+    "typecheck": "tsc --build",
+    "clean": "rimraf packages/*/dist apps/*/dist"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "compliance-service": "^1.0.0"
+  }
+}

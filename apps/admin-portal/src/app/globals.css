@@ -1,0 +1,589 @@
+@import "tailwindcss";
+@import "./theme-utilities.css";
+
+/* =========================================
+   VERIDEX ADMIN PORTAL - DESIGN SYSTEM v3.0
+   Production-grade theme architecture
+   Single source of truth for ALL visual tokens
+   ========================================= */
+
+/* =========================================
+   BROWSER AUTOFILL OVERRIDES
+   Prevents browser from applying light background
+   on autofilled inputs in dark-themed forms
+   ========================================= */
+
+/* Chrome/Safari/Edge autofill override for dark forms */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #1e293b inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Firefox autofill override */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+/* Ensure all inputs in login form have visible text */
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  color: #ffffff;
+  caret-color: #ffffff;
+}
+
+/* =========================================
+   CSS CUSTOM PROPERTIES - DESIGN TOKENS
+   RULES:
+   1. Components NEVER use hardcoded colors
+   2. All colors reference these tokens
+   3. WCAG AA contrast minimum required
+   ========================================= */
+
+:root {
+  color-scheme: light;
+
+  /* ====== BACKGROUND / SURFACE ====== */
+  --background: #f2f4f8;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-muted: #f8f9fb;
+
+  /* ====== TEXT ====== */
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+  --text-disabled: #a0aec0;
+  --text-inverse: #ffffff;
+
+  /* ====== BORDERS ====== */
+  --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --border-strong: #cbd5e1;
+  --border-focus: #f59e0b;
+
+  /* ====== PRIMARY / BRAND (Amber) ====== */
+  --primary: #f59e0b;
+  --primary-hover: #d97706;
+  --primary-light: #fef3c7;
+  --primary-dark: #b45309;
+
+  /* ====== STATUS COLORS ====== */
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+
+  --warning: #f59e0b;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+
+  --error: #ef4444;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+
+  --info: #0ea5e9;
+  --info-bg: #f0f9ff;
+  --info-border: #bae6fd;
+
+  /* ====== LAYOUT ====== */
+  --sidebar-bg: #f8fafc;
+  --sidebar-text: #94a3b8;
+  --sidebar-active: #f59e0b;
+  --sidebar-hover: rgba(0, 0, 0, 0.03);
+
+  --header-bg: #ffffff;
+  --header-border: #e2e8f0;
+
+  /* ====== SHADOWS ====== */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.06);
+
+  /* ====== Z-INDEX ====== */
+  --z-base: 0;
+  --z-card: 10;
+  --z-sticky: 50;
+  --z-header: 100;
+  --z-sidebar: 150;
+  --z-dropdown: 1100;
+  --z-modal: 1200;
+  --z-toast: 1300;
+  --z-tooltip: 1400;
+
+  /* ====== LAYOUT DIMENSIONS ====== */
+  --sidebar-width: 256px;
+  --header-height: 64px;
+
+  /* ====== TYPOGRAPHY ====== */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* ====== RADIUS ====== */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* ====== TRANSITIONS ====== */
+  --transition-fast: 100ms ease-out;
+  --transition-normal: 150ms ease-out;
+  --transition-slow: 300ms ease-out;
+}
+
+/* ====== DARK THEME ====== */
+.dark {
+  color-scheme: dark;
+
+  /* Background / Surface - Lighter for better readability */
+  --background: #0f172a;
+  --surface: #1e293b;
+  --surface-elevated: #334155;
+  --surface-muted: #1e293b;
+
+  /* Text - Higher contrast */
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-disabled: #64748b;
+  --text-inverse: #0f172a;
+
+  /* Borders - More visible */
+  --border: #334155;
+  --border-subtle: #1e293b;
+  --border-strong: #475569;
+  --border-focus: #fbbf24;
+
+  /* Primary / Brand */
+  --primary: #fbbf24;
+  --primary-hover: #f59e0b;
+  --primary-light: rgba(251, 191, 36, 0.2);
+  --primary-dark: #d97706;
+
+  /* Status - adjusted for dark backgrounds */
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --success-border: rgba(52, 211, 153, 0.3);
+
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --warning-border: rgba(251, 191, 36, 0.3);
+
+  --error: #f87171;
+  --error-bg: rgba(248, 113, 113, 0.15);
+  --error-border: rgba(248, 113, 113, 0.3);
+
+  --info: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --info-border: rgba(96, 165, 250, 0.3);
+
+  /* Layout */
+  --sidebar-bg: #0f172a;
+  --header-bg: #1e293b;
+  --header-border: #334155;
+
+  /* Shadows - darker for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.7);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.5);
+}
+
+/* =========================================
+   BASE STYLES
+   ========================================= */
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Disable smooth scroll during route transitions */
+html:not([data-scroll-behavior="smooth"]) {
+  scroll-behavior: auto !important;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Prevent FOUC - hide until theme is applied */
+html:not(.light):not(.dark) body {
+  visibility: hidden;
+}
+
+/* Force smooth transitions on theme change */
+html,
+body,
+*:not(input):not(textarea) {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+/* Ensure proper color inheritance for all elements */
+* {
+  color: inherit;
+}
+
+/* ====== READABLE TEXT IN ALL CONTEXTS ====== */
+p,
+span,
+div,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+td,
+th,
+label {
+  color: inherit;
+}
+
+/* Ensure headings are always readable */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Paragraph text defaults to primary */
+p,
+li,
+div {
+  color: var(--text-primary);
+}
+
+/* Small text and captions use secondary/muted */
+small,
+.text-sm,
+.text-xs,
+.caption {
+  color: var(--text-secondary);
+}
+
+/* Links should be styled with primary brand color */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+/* Only underline text-based links on hover, not navigation items */
+a:hover:not([class*="flex"]):not([class*="nav"]):not([class*="items-center"]) {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* Navigation links should never have underline */
+nav a,
+aside a,
+[role="navigation"] a,
+a[class*="flex"],
+a[class*="rounded"] {
+  text-decoration: none !important;
+}
+
+nav a:hover,
+aside a:hover,
+[role="navigation"] a:hover,
+a[class*="flex"]:hover,
+a[class*="rounded"]:hover {
+  text-decoration: none !important;
+}
+
+/* Labels should be readable */
+label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Form placeholders */
+::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* =========================================
+   SCROLLBAR STYLING
+   ========================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+/* =========================================
+   SEMANTIC UTILITY CLASSES
+   ========================================= */
+
+/* Backgrounds */
+.bg-background {
+  background-color: var(--background);
+}
+
+.bg-surface {
+  background-color: var(--surface);
+}
+
+.bg-surface-elevated {
+  background-color: var(--surface-elevated);
+}
+
+.bg-surface-muted {
+  background-color: var(--surface-muted);
+}
+
+/* Text colors */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-brand {
+  color: var(--primary);
+}
+
+/* Borders */
+.border-default {
+  border-color: var(--border);
+}
+
+.border-subtle {
+  border-color: var(--border-subtle);
+}
+
+/* =========================================
+   COMPONENT PATTERNS
+   ========================================= */
+
+/* Card */
+.admin-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* Input */
+.admin-input {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.admin-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Button - Primary */
+.admin-btn-primary {
+  background-color: var(--primary);
+  color: var(--text-inverse);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+}
+
+.admin-btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Button - Ghost */
+.admin-btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.admin-btn-ghost:hover {
+  background-color: var(--surface-muted);
+  color: var(--text-primary);
+}
+
+/* Badge */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.admin-badge-success {
+  background-color: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+.admin-badge-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+
+.admin-badge-error {
+  background-color: var(--error-bg);
+  color: var(--error);
+  border: 1px solid var(--error-border);
+}
+
+.admin-badge-info {
+  background-color: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
+}
+
+/* =========================================
+   ANIMATIONS
+   ========================================= */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-normal) ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* =========================================
+   FOCUS VISIBLE STYLES
+   ========================================= */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* =========================================
+   SELECTION STYLES
+   ========================================= */
+
+::selection {
+  background-color: var(--primary-light);
+  color: var(--text-primary);
+}
+
+/* =========================================
+   PRINT STYLES
+   ========================================= */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}

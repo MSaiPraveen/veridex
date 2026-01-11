@@ -1,0 +1,28 @@
+{
+  "name": "audit-log-service",
+  "version": "1.0.0",
+  "description": "Audit log microservice",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@veridex/api-contracts": "*",
+    "@veridex/event-contracts": "*",
+    "@veridex/roles-permissions": "*",
+    "@veridex/shared": "*",
+    "dotenv": "^16.3.0",
+    "fastify": "^5.0.0",
+    "kafkajs": "^2.2.0",
+    "mongoose": "^8.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.0"
+  }
+}

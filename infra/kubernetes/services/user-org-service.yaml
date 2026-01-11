@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-org-service
+  namespace: veridex
+  labels:
+    app: user-org-service
+spec:
+  ports:
+    - port: 3003
+      targetPort: 3003
+      protocol: TCP
+  selector:
+    app: user-org-service
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-org-service
+  namespace: veridex
+  labels:
+    app: user-org-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-org-service
+  template:
+    metadata:
+      labels:
+        app: user-org-service
+    spec:
+      containers:
+        - name: user-org-service
+          image: veridex/user-org-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3003
+          envFrom:
+            - secretRef:
+                name: veridex-secrets
+            - configMapRef:
+                name: veridex-config
+          env:
+            - name: PORT
+              value: "3003"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: veridex-secrets
+                  key: MONGO_USER_ORG_URI
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 5
+            periodSeconds: 5
