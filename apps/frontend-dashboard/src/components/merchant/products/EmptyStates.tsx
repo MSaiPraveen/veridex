@@ -25,17 +25,17 @@ export function ProductsEmptyState({
       );
     }
     return (
-      <OrgEmptyState 
-        onCreateProduct={onCreateProduct} 
-        onImportFromGlobal={onImportFromGlobal} 
+      <OrgEmptyState
+        onCreateProduct={onCreateProduct}
+        onImportFromGlobal={onImportFromGlobal}
       />
     );
   }
 
   return (
-    <GlobalEmptyState 
-      hasFilters={hasFilters} 
-      onClearFilters={onClearFilters} 
+    <GlobalEmptyState
+      hasFilters={hasFilters}
+      onClearFilters={onClearFilters}
     />
   );
 }
@@ -43,11 +43,11 @@ export function ProductsEmptyState({
 // ============================================
 // Organization Tab - No Products Yet
 // ============================================
-function OrgEmptyState({ 
-  onCreateProduct, 
-  onImportFromGlobal 
-}: { 
-  onCreateProduct: () => void; 
+function OrgEmptyState({
+  onCreateProduct,
+  onImportFromGlobal
+}: {
+  onCreateProduct: () => void;
   onImportFromGlobal: () => void;
 }) {
   return (
@@ -127,7 +127,7 @@ function OrgFilteredEmptyState({ onClearFilters }: { onClearFilters: () => void 
           No matching products
         </h3>
         <p className="text-[var(--foreground-muted)] mb-6">
-          We couldn't find any products matching your current filters. Try adjusting your search criteria.
+          We couldn&apos;t find any products matching your current filters. Try adjusting your search criteria.
         </p>
 
         {/* Actions */}
@@ -146,11 +146,11 @@ function OrgFilteredEmptyState({ onClearFilters }: { onClearFilters: () => void 
 // ============================================
 // Global Catalog Tab - Empty State
 // ============================================
-function GlobalEmptyState({ 
-  hasFilters, 
-  onClearFilters 
-}: { 
-  hasFilters: boolean; 
+function GlobalEmptyState({
+  hasFilters,
+  onClearFilters
+}: {
+  hasFilters: boolean;
   onClearFilters: () => void;
 }) {
   if (hasFilters) {
@@ -169,7 +169,7 @@ function GlobalEmptyState({
             No products found in catalog
           </h3>
           <p className="text-[var(--foreground-muted)] mb-6">
-            Your search didn't match any products in the global catalog. Try different keywords or clear filters.
+            Your search didn&apos;t match any products in the global catalog. Try different keywords or clear filters.
           </p>
 
           {/* Actions */}

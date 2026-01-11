@@ -70,8 +70,8 @@ export default function AdminReviewsPage() {
   const [filter, setFilter] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const products = productsData?.data || [];
-  const documents = docsData?.data || [];
+  const products = useMemo(() => productsData?.data || [], [productsData]);
+  const documents = useMemo(() => docsData?.data || [], [docsData]);
   const isLoading = loadingProducts || loadingDocs;
 
   // Build review items from pending products and documents
@@ -96,9 +96,8 @@ export default function AdminReviewsPage() {
           status: product.status === 'PENDING_REVIEW' ? 'in-review' : 'pending',
           submittedBy: product.organizationId || 'Unknown',
           submittedAt: formatDate(product.createdAt),
-          description: `${product.category || 'N/A'} product. ${
-            product.commodityType ? `Commodity: ${product.commodityType}` : ''
-          }${product.originCountry ? ` Origin: ${product.originCountry}` : ''}`,
+          description: `${product.category || 'N/A'} product. ${product.commodityType ? `Commodity: ${product.commodityType}` : ''
+            }${product.originCountry ? ` Origin: ${product.originCountry}` : ''}`,
           originalData: product,
         });
       });
@@ -216,27 +215,24 @@ export default function AdminReviewsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <button
           onClick={() => setFilter('')}
-          className={`card p-4 text-left transition-colors ${
-            filter === '' ? 'ring-2 ring-primary-500' : ''
-          }`}
+          className={`card p-4 text-left transition-colors ${filter === '' ? 'ring-2 ring-primary-500' : ''
+            }`}
         >
           <p className="text-2xl font-semibold text-[var(--foreground)]">{stats.total}</p>
           <p className="text-sm text-[var(--foreground-muted)]">Total Reviews</p>
         </button>
         <button
           onClick={() => setFilter('pending')}
-          className={`card p-4 text-left transition-colors ${
-            filter === 'pending' ? 'ring-2 ring-primary-500' : ''
-          }`}
+          className={`card p-4 text-left transition-colors ${filter === 'pending' ? 'ring-2 ring-primary-500' : ''
+            }`}
         >
           <p className="text-2xl font-semibold text-warning-600 dark:text-warning-400">{stats.pending}</p>
           <p className="text-sm text-[var(--foreground-muted)]">Pending</p>
         </button>
         <button
           onClick={() => setFilter('in-review')}
-          className={`card p-4 text-left transition-colors ${
-            filter === 'in-review' ? 'ring-2 ring-primary-500' : ''
-          }`}
+          className={`card p-4 text-left transition-colors ${filter === 'in-review' ? 'ring-2 ring-primary-500' : ''
+            }`}
         >
           <p className="text-2xl font-semibold text-info-600 dark:text-info-400">{stats.inReview}</p>
           <p className="text-sm text-[var(--foreground-muted)]">In Review</p>
@@ -270,11 +266,10 @@ export default function AdminReviewsPage() {
                   <button
                     key={review.id}
                     onClick={() => setSelectedReview(review)}
-                    className={`w-full p-4 text-left transition-colors hover:bg-[var(--background)] ${
-                      selectedReview?.id === review.id
+                    className={`w-full p-4 text-left transition-colors hover:bg-[var(--background)] ${selectedReview?.id === review.id
                         ? 'bg-primary-50/50 dark:bg-primary-900/10'
                         : ''
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="flex items-center gap-2">
@@ -294,9 +289,8 @@ export default function AdminReviewsPage() {
                     <div className="flex items-center justify-between mt-3 text-xs text-[var(--foreground-muted)]">
                       <span>{review.submittedBy}</span>
                       <span
-                        className={`badge ${
-                          review.status === 'pending' ? 'badge-warning' : 'badge-info'
-                        }`}
+                        className={`badge ${review.status === 'pending' ? 'badge-warning' : 'badge-info'
+                          }`}
                       >
                         {review.status === 'pending' ? 'Pending' : 'In Review'}
                       </span>
@@ -351,9 +345,8 @@ export default function AdminReviewsPage() {
                       Status
                     </p>
                     <span
-                      className={`badge ${
-                        selectedReview.status === 'pending' ? 'badge-warning' : 'badge-info'
-                      }`}
+                      className={`badge ${selectedReview.status === 'pending' ? 'badge-warning' : 'badge-info'
+                        }`}
                     >
                       {selectedReview.status === 'pending' ? 'Pending' : 'In Review'}
                     </span>

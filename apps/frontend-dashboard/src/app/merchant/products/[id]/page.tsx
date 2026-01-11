@@ -42,7 +42,7 @@ export default function ProductDetailPage() {
                     <Icons.alertCircle className="text-destructive mb-4" size={48} />
                     <h2 className="text-2xl font-bold mb-2">Product Not Found</h2>
                     <p className="text-muted-foreground mb-6">
-                        The product you're looking for doesn't exist or you don't have permission to view it.
+                        The product you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.
                     </p>
                     <Link href="/merchant/products" className="btn-primary">
                         Back to Products

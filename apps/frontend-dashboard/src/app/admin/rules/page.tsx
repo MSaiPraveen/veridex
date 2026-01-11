@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout, PageHeader } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
-import { Modal, ConfirmDialog } from '@/components/ui/modal';
+import { ConfirmDialog } from '@/components/ui/modal';
 import { RuleForm } from '@/components/forms/rule-form';
 import { StatusBadge } from '@/components/ui/table';
 import {
@@ -57,14 +57,12 @@ function Toggle({ enabled, onChange, loading }: { enabled: boolean; onChange: ()
     <button
       onClick={onChange}
       disabled={loading}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-        enabled ? 'bg-success-600' : 'bg-[var(--border)]'
-      }`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${enabled ? 'bg-success-600' : 'bg-[var(--border)]'
+        }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
       />
     </button>
   );
@@ -84,7 +82,7 @@ function RuleCard({
   isToggling: boolean;
 }) {
   const isActive = rule.status === 'ACTIVE';
-  
+
   return (
     <div className={`card p-5 ${!isActive ? 'opacity-75' : ''}`}>
       <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -106,8 +104,8 @@ function RuleCard({
             <SeverityBadge severity={rule.severity} />
             <CategoryBadge category={rule.category} />
             <StatusBadge status={rule.status} variant={
-              rule.status === 'ACTIVE' ? 'success' : 
-              rule.status === 'DRAFT' ? 'info' : 'neutral'
+              rule.status === 'ACTIVE' ? 'success' :
+                rule.status === 'DRAFT' ? 'info' : 'neutral'
             } />
             {rule.metadata?.jurisdiction && (
               <span className="text-xs text-[var(--foreground-muted)]">
@@ -179,7 +177,7 @@ export default function AdminRulesPage() {
   const [deleteRule, setDeleteRule] = useState<ComplianceRule | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const rules = data?.data || [];
+  const rules = useMemo(() => data?.data || [], [data]);
 
   // Filter rules
   const filteredRules = useMemo(() => {

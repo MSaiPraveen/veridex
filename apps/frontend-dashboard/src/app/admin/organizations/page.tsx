@@ -52,7 +52,7 @@ function TypeBadge({ type }: { type: string }) {
 
 export default function AdminOrganizationsPage() {
   const searchParams = useSearchParams();
-  const { data, isLoading, error, refetch } = useOrganizations();
+  const { data, isLoading, refetch } = useOrganizations();
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -72,7 +72,7 @@ export default function AdminOrganizationsPage() {
   const [editingOrg, setEditingOrg] = useState<Organization | undefined>();
   const [deleteOrg, setDeleteOrg] = useState<Organization | null>(null);
 
-  const organizations = data?.data || [];
+  const organizations = useMemo(() => data?.data || [], [data]);
 
   // Filter organizations
   const filteredOrgs = useMemo(() => {

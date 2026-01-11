@@ -49,7 +49,7 @@ function RoleBadge({ role }: { role: string }) {
 
 function AdminUsersPage() {
   const searchParams = useSearchParams();
-  const { data, isLoading, error, refetch } = useUsers();
+  const { data, isLoading, refetch } = useUsers();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -68,7 +68,7 @@ function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteUserState, setDeleteUserState] = useState<User | null>(null);
 
-  const users = data?.data || [];
+  const users = useMemo(() => data?.data || [], [data]);
 
   // Filter users
   const filteredUsers = useMemo(() => {

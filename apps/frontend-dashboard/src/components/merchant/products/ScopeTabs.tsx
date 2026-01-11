@@ -58,7 +58,7 @@ export function ScopeTabs({
                 Global Catalog - Read Only
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                Browse shared products and click <strong>"Import"</strong> to add a copy to your organization with optional customizations.
+                Browse shared products and click <strong>&quot;Import&quot;</strong> to add a copy to your organization with optional customizations.
               </p>
             </div>
           </div>
@@ -136,7 +136,7 @@ function TabButton({
         `}>
           {icon}
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={`
