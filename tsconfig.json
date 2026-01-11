@@ -1,0 +1,57 @@
+{
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "noEmit": true
+    },
+    "files": [],
+    "references": [
+        {
+            "path": "./packages/roles-permissions"
+        },
+        {
+            "path": "./packages/event-contracts"
+        },
+        {
+            "path": "./packages/api-contracts"
+        },
+        {
+            "path": "./packages/schemas"
+        },
+        {
+            "path": "./packages/compliance-rules"
+        },
+        {
+            "path": "./packages/shared"
+        },
+        {
+            "path": "./apps/api-gateway"
+        },
+        {
+            "path": "./apps/auth-service"
+        },
+        {
+            "path": "./apps/product-service"
+        },
+        {
+            "path": "./apps/document-service"
+        },
+        {
+            "path": "./apps/compliance-service"
+        },
+        {
+            "path": "./apps/audit-log-service"
+        },
+        {
+            "path": "./apps/notification-service"
+        },
+        {
+            "path": "./apps/user-org-service"
+        },
+        {
+            "path": "./apps/frontend-dashboard"
+        },
+        {
+            "path": "./apps/admin-portal"
+        }
+    ]
+}
