@@ -33,9 +33,9 @@ export default function ConsumerCompliancePage() {
   const { data: docsData, isLoading: loadingDocs } = useDocuments();
   const { data: rulesData, isLoading: loadingRules } = useComplianceRules();
 
-  const products = productsData?.data || [];
-  const documents = docsData?.data || [];
-  const rules = rulesData?.data || [];
+  const products = useMemo(() => productsData?.data || [], [productsData]);
+  const documents = useMemo(() => docsData?.data || [], [docsData]);
+  const rules = useMemo(() => rulesData?.data || [], [rulesData]);
 
   const isLoading = loadingProducts || loadingDocs || loadingRules;
 

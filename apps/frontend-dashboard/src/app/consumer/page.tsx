@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DashboardLayout, PageHeader } from '@/components/layout';
+import { DashboardLayout } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';

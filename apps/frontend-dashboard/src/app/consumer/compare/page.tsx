@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DashboardLayout, PageHeader } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
-import Link from 'next/link';
 import { useProducts } from '@/lib/hooks';
 
 interface ComparisonProduct {
@@ -24,7 +23,7 @@ export default function ProductComparisonPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSelector, setShowSelector] = useState(false);
 
-  const filteredProducts = products?.filter(p => 
+  const filteredProducts = products?.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -70,27 +69,39 @@ export default function ProductComparisonPage() {
   };
 
   const comparisonFields = [
-    { key: 'complianceStatus', label: 'Compliance Status', render: (p: ComparisonProduct) => (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(p.complianceStatus)}`}>
-        {getStatusIcon(p.complianceStatus)}
-        {p.complianceStatus?.replace('_', ' ') || 'Unknown'}
-      </span>
-    )},
-    { key: 'category', label: 'Category', render: (p: ComparisonProduct) => (
-      <span className="text-sm">{p.category}</span>
-    )},
-    { key: 'sku', label: 'SKU', render: (p: ComparisonProduct) => (
-      <span className="text-sm font-mono">{p.sku || 'N/A'}</span>
-    )},
-    { key: 'thcContent', label: 'THC Content', render: (p: ComparisonProduct) => (
-      <span className="text-sm">{p.thcContent ? `${p.thcContent}%` : 'N/A'}</span>
-    )},
-    { key: 'cbdContent', label: 'CBD Content', render: (p: ComparisonProduct) => (
-      <span className="text-sm">{p.cbdContent ? `${p.cbdContent}%` : 'N/A'}</span>
-    )},
-    { key: 'merchant', label: 'Merchant', render: (p: ComparisonProduct) => (
-      <span className="text-sm">{p.organizationName || 'Unknown'}</span>
-    )},
+    {
+      key: 'complianceStatus', label: 'Compliance Status', render: (p: ComparisonProduct) => (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(p.complianceStatus)}`}>
+          {getStatusIcon(p.complianceStatus)}
+          {p.complianceStatus?.replace('_', ' ') || 'Unknown'}
+        </span>
+      )
+    },
+    {
+      key: 'category', label: 'Category', render: (p: ComparisonProduct) => (
+        <span className="text-sm">{p.category}</span>
+      )
+    },
+    {
+      key: 'sku', label: 'SKU', render: (p: ComparisonProduct) => (
+        <span className="text-sm font-mono">{p.sku || 'N/A'}</span>
+      )
+    },
+    {
+      key: 'thcContent', label: 'THC Content', render: (p: ComparisonProduct) => (
+        <span className="text-sm">{p.thcContent ? `${p.thcContent}%` : 'N/A'}</span>
+      )
+    },
+    {
+      key: 'cbdContent', label: 'CBD Content', render: (p: ComparisonProduct) => (
+        <span className="text-sm">{p.cbdContent ? `${p.cbdContent}%` : 'N/A'}</span>
+      )
+    },
+    {
+      key: 'merchant', label: 'Merchant', render: (p: ComparisonProduct) => (
+        <span className="text-sm">{p.organizationName || 'Unknown'}</span>
+      )
+    },
   ];
 
   return (
