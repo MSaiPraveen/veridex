@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import 'react';
 import { Icons } from '@/components/ui/icons';
 import { Product, ProductScope, ProductPermission } from './types';
 
@@ -30,7 +30,7 @@ export function BulkActionsBar({
   isProcessing = false,
 }: BulkActionsBarProps) {
   const count = selectedProducts.length;
-  
+
   if (count === 0) return null;
 
   const canBulkActions = permissions.includes('products:bulk_actions');

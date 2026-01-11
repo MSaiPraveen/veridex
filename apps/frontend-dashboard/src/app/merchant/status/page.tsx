@@ -42,8 +42,8 @@ export default function MerchantStatusPage() {
   const { data: productsData, isLoading: loadingProducts } = useProducts();
   const { data: docsData, isLoading: loadingDocs } = useDocuments();
 
-  const products = productsData?.data || [];
-  const documents = docsData?.data || [];
+  const products = useMemo(() => productsData?.data || [], [productsData]);
+  const documents = useMemo(() => docsData?.data || [], [docsData]);
 
   const isLoading = loadingProducts || loadingDocs;
 
@@ -151,7 +151,7 @@ export default function MerchantStatusPage() {
       time: string;
       status: 'success' | 'error' | 'info';
     }> = [];
-    
+
     // Add recent product updates
     products.slice(0, 3).forEach((p: Product) => {
       activities.push({
@@ -159,11 +159,11 @@ export default function MerchantStatusPage() {
         type: 'product',
         title: `Product ${p.name} - ${p.complianceStatus?.replace(/_/g, ' ') || 'updated'}`,
         time: formatTimeAgo(p.updatedAt || p.createdAt),
-        status: p.complianceStatus === 'COMPLIANT' ? 'success' : 
-                p.complianceStatus === 'NON_COMPLIANT' ? 'error' : 'info',
+        status: p.complianceStatus === 'COMPLIANT' ? 'success' :
+          p.complianceStatus === 'NON_COMPLIANT' ? 'error' : 'info',
       });
     });
-    
+
     // Add recent document updates
     documents.slice(0, 3).forEach((doc: Document) => {
       const docStatus = doc.status as string;
@@ -172,11 +172,11 @@ export default function MerchantStatusPage() {
         type: 'document',
         title: `Document ${doc.name || doc.type} uploaded`,
         time: formatTimeAgo(doc.updatedAt || doc.createdAt),
-        status: docStatus === 'SUCCESS' || docStatus === 'ACTIVE' ? 'success' : 
-                docStatus === 'FAILED' || docStatus === 'EXPIRED' ? 'error' : 'info',
+        status: docStatus === 'SUCCESS' || docStatus === 'ACTIVE' ? 'success' :
+          docStatus === 'FAILED' || docStatus === 'EXPIRED' ? 'error' : 'info',
       });
     });
-    
+
     return activities.slice(0, 5);
   }, [products, documents]);
 
@@ -275,13 +275,12 @@ export default function MerchantStatusPage() {
                   <IconComponent size={20} />
                 </div>
                 <span
-                  className={`text-sm font-medium ${
-                    metric.trend === 'up'
+                  className={`text-sm font-medium ${metric.trend === 'up'
                       ? 'text-success-600 dark:text-success-400'
                       : metric.trend === 'down'
-                      ? 'text-error-600 dark:text-error-400'
-                      : 'text-[var(--foreground-muted)]'
-                  }`}
+                        ? 'text-error-600 dark:text-error-400'
+                        : 'text-[var(--foreground-muted)]'
+                    }`}
                 >
                   {metric.change}
                 </span>
@@ -320,26 +319,24 @@ export default function MerchantStatusPage() {
                       </span>
                     </div>
                     <span
-                      className={`text-sm font-semibold ${
-                        item.score >= 90
+                      className={`text-sm font-semibold ${item.score >= 90
                           ? 'text-success-600 dark:text-success-400'
                           : item.score >= 75
-                          ? 'text-warning-600 dark:text-warning-400'
-                          : 'text-error-600 dark:text-error-400'
-                      }`}
+                            ? 'text-warning-600 dark:text-warning-400'
+                            : 'text-error-600 dark:text-error-400'
+                        }`}
                     >
                       {item.score}%
                     </span>
                   </div>
                   <div className="h-3 bg-[var(--background)] rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        item.score >= 90
+                      className={`h-full rounded-full transition-all duration-500 ${item.score >= 90
                           ? 'bg-success-500'
                           : item.score >= 75
-                          ? 'bg-warning-500'
-                          : 'bg-error-500'
-                      }`}
+                            ? 'bg-warning-500'
+                            : 'bg-error-500'
+                        }`}
                       style={{ width: `${item.score}%` }}
                     />
                   </div>
@@ -352,10 +349,9 @@ export default function MerchantStatusPage() {
           <div className="mt-8 pt-6 border-t border-[var(--border)]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-[var(--foreground)]">Overall Risk Assessment</h3>
-              <span className={`badge ${
-                overallRisk.level === 'Low' ? 'badge-success' :
-                overallRisk.level === 'Medium' ? 'badge-warning' : 'badge-error'
-              }`}>
+              <span className={`badge ${overallRisk.level === 'Low' ? 'badge-success' :
+                  overallRisk.level === 'Medium' ? 'badge-warning' : 'badge-error'
+                }`}>
                 {overallRisk.level} Risk
               </span>
             </div>
@@ -395,24 +391,22 @@ export default function MerchantStatusPage() {
               {upcomingDeadlines.map((deadline) => (
                 <div
                   key={deadline.id}
-                  className={`p-4 rounded-lg border ${
-                    deadline.priority === 'high'
+                  className={`p-4 rounded-lg border ${deadline.priority === 'high'
                       ? 'border-error-200 dark:border-error-800 bg-error-50/50 dark:bg-error-900/10'
                       : deadline.priority === 'medium'
-                      ? 'border-warning-200 dark:border-warning-800 bg-warning-50/50 dark:bg-warning-900/10'
-                      : 'border-[var(--border)] bg-[var(--background)]'
-                  }`}
+                        ? 'border-warning-200 dark:border-warning-800 bg-warning-50/50 dark:bg-warning-900/10'
+                        : 'border-[var(--border)] bg-[var(--background)]'
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-[var(--foreground)]">{deadline.title}</h4>
                     <span
-                      className={`badge ${
-                        deadline.priority === 'high'
+                      className={`badge ${deadline.priority === 'high'
                           ? 'badge-error'
                           : deadline.priority === 'medium'
-                          ? 'badge-warning'
-                          : 'badge-info'
-                      }`}
+                            ? 'badge-warning'
+                            : 'badge-info'
+                        }`}
                     >
                       {deadline.daysLeft}d left
                     </span>
@@ -444,13 +438,12 @@ export default function MerchantStatusPage() {
             {recentActivity.map((activity) => (
               <div key={activity.id} className="py-4 first:pt-0 last:pb-0 flex items-start gap-4">
                 <div
-                  className={`mt-0.5 p-2 rounded-full ${
-                    activity.status === 'success'
+                  className={`mt-0.5 p-2 rounded-full ${activity.status === 'success'
                       ? 'bg-success-50 dark:bg-success-900/20'
                       : activity.status === 'error'
-                      ? 'bg-error-50 dark:bg-error-900/20'
-                      : 'bg-info-50 dark:bg-info-900/20'
-                  }`}
+                        ? 'bg-error-50 dark:bg-error-900/20'
+                        : 'bg-info-50 dark:bg-info-900/20'
+                    }`}
                 >
                   {activity.status === 'success' ? (
                     <Icons.check

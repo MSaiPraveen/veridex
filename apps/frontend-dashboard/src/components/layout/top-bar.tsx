@@ -46,7 +46,7 @@ const getNotificationsForRole = (role?: string): Notification[] => {
       },
     ];
   }
-  
+
   if (role === 'CONSUMER') {
     return [
       {
@@ -67,7 +67,7 @@ const getNotificationsForRole = (role?: string): Notification[] => {
       },
     ];
   }
-  
+
   return [];
 };
 
@@ -83,23 +83,25 @@ export function TopBar({
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>('none');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mounted, setMounted] = useState(false);
-  
+
   const searchRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     return () => setMounted(false);
   }, []);
 
   useEffect(() => {
     if (user?.role) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNotifications(getNotificationsForRole(user.role));
     }
   }, [user?.role]);
@@ -181,14 +183,14 @@ export function TopBar({
       error: "text-red-500",
       info: "text-blue-500",
     }[type];
-    
+
     const IconComponent = {
       success: Icons.check,
       warning: Icons.alertCircle,
       error: Icons.x,
       info: Icons.info,
     }[type];
-    
+
     return <IconComponent size={16} className={iconClass} />;
   };
 
@@ -217,9 +219,9 @@ export function TopBar({
         {/* Center: Search */}
         <div className="hidden md:flex flex-1 max-w-md mx-8" ref={searchRef}>
           <form onSubmit={handleSearch} className="relative w-full">
-            <Icons.search 
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]" 
-              size={18} 
+            <Icons.search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)]"
+              size={18}
             />
             <input
               type="text"
@@ -242,11 +244,10 @@ export function TopBar({
           <div className="relative" ref={notificationRef}>
             <button
               onClick={() => toggleDropdown('notifications')}
-              className={`relative p-2.5 rounded-xl transition-colors ${
-                openDropdown === 'notifications' 
-                  ? 'bg-[var(--muted)]' 
+              className={`relative p-2.5 rounded-xl transition-colors ${openDropdown === 'notifications'
+                  ? 'bg-[var(--muted)]'
                   : 'hover:bg-[var(--muted)]'
-              }`}
+                }`}
             >
               <Icons.bell className="text-[var(--foreground-muted)]" size={20} />
               {unreadCount > 0 && (
@@ -291,9 +292,8 @@ export function TopBar({
                       <div
                         key={n.id}
                         onClick={() => markAsRead(n.id)}
-                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--muted)] ${
-                          !n.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
-                        }`}
+                        className={`px-4 py-3 cursor-pointer transition-colors hover:bg-[var(--muted)] ${!n.read ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                          }`}
                       >
                         <div className="flex gap-3">
                           <div className="mt-0.5">{getNotificationIcon(n.type)}</div>
@@ -344,20 +344,18 @@ export function TopBar({
           <div className="relative ml-1" ref={profileRef}>
             <button
               onClick={() => toggleDropdown('profile')}
-              className={`flex items-center gap-2 p-1.5 rounded-xl transition-colors ${
-                openDropdown === 'profile' 
-                  ? 'bg-[var(--muted)]' 
+              className={`flex items-center gap-2 p-1.5 rounded-xl transition-colors ${openDropdown === 'profile'
+                  ? 'bg-[var(--muted)]'
                   : 'hover:bg-[var(--muted)]'
-              }`}
+                }`}
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
                 <span className="text-sm font-medium text-white">{getInitials()}</span>
               </div>
-              <Icons.chevronDown 
-                className={`hidden sm:block text-slate-400 transition-transform duration-200 ${
-                  openDropdown === 'profile' ? 'rotate-180' : ''
-                }`} 
-                size={14} 
+              <Icons.chevronDown
+                className={`hidden sm:block text-slate-400 transition-transform duration-200 ${openDropdown === 'profile' ? 'rotate-180' : ''
+                  }`}
+                size={14}
               />
             </button>
 
@@ -397,7 +395,7 @@ export function TopBar({
                       <p className="text-xs text-[var(--foreground-muted)]">View and edit profile</p>
                     </div>
                   </Link>
-                  
+
                   <Link
                     href="/settings"
                     onClick={closeAll}

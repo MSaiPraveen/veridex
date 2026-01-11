@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLayout, PageHeader } from '@/components/layout';
@@ -72,15 +72,15 @@ export default function SearchPage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const query = searchParams.get('q') || '';
-  
+
   const [activeTab, setActiveTab] = useState<'all' | 'products' | 'documents'>('all');
-  
+
   // Fetch data
   const { data: productsData, isLoading: loadingProducts } = useProducts();
   const { data: documentsData, isLoading: loadingDocuments } = useDocuments();
 
-  const products = productsData?.data || [];
-  const documents = documentsData?.data || [];
+  const products = useMemo(() => productsData?.data || [], [productsData]);
+  const documents = useMemo(() => documentsData?.data || [], [documentsData]);
 
   const isLoading = loadingProducts || loadingDocuments;
 
@@ -158,32 +158,29 @@ export default function SearchPage() {
           <div className="flex items-center gap-2 mb-6 border-b border-[var(--border)]">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === 'all'
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'all'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-              }`}
+                }`}
             >
               All ({results.length})
             </button>
             <button
               onClick={() => setActiveTab('products')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === 'products'
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'products'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-              }`}
+                }`}
             >
               Products ({productCount})
             </button>
             {user?.role === 'MERCHANT' && (
               <button
                 onClick={() => setActiveTab('documents')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                  activeTab === 'documents'
+                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'documents'
                     ? 'border-primary-500 text-primary-600'
                     : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-                }`}
+                  }`}
               >
                 Documents ({documentCount})
               </button>

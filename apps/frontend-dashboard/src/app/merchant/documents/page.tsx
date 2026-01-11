@@ -66,6 +66,7 @@ export default function MerchantDocumentsPage() {
   useEffect(() => {
     const urlSearch = searchParams.get('search');
     if (urlSearch) {
+       
       setSearch(urlSearch);
     }
   }, [searchParams]);

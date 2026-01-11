@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { Input, TextArea, Select, FormRow, FormActions } from '@/components/ui/form';
+import { Input, Select, FormRow, FormActions } from '@/components/ui/form';
 import { Organization, CreateOrganizationInput } from '@/lib/hooks';
 
 interface OrganizationFormProps {
@@ -39,26 +39,45 @@ export function OrganizationForm({ isOpen, onClose, onSubmit, organization }: Or
   // Reset form when organization changes
   useEffect(() => {
     if (organization) {
+       
       setName(organization.name);
+       
       setType(organization.type);
+       
       setContactEmail(organization.contactEmail);
+       
       setPhone(organization.phone || '');
+       
       setStreet(organization.address?.street || '');
+       
       setCity(organization.address?.city || '');
+       
       setState(organization.address?.state || '');
+       
       setZipCode(organization.address?.zipCode || '');
+       
       setCountry(organization.address?.country || '');
     } else {
+       
       setName('');
+       
       setType('MANUFACTURER');
+       
       setContactEmail('');
+       
       setPhone('');
+       
       setStreet('');
+       
       setCity('');
+       
       setState('');
+       
       setZipCode('');
+       
       setCountry('');
     }
+     
     setErrors({});
   }, [organization, isOpen]);
 
@@ -78,7 +97,7 @@ export function OrganizationForm({ isOpen, onClose, onSubmit, organization }: Or
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
 
     setIsSubmitting(true);

@@ -26,7 +26,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
@@ -35,6 +35,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
+
       setFormData({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
@@ -59,7 +60,7 @@ export default function ProfilePage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
       });
-      
+
       await refreshUser();
       setSuccess("Profile updated successfully");
       setIsEditing(false);
@@ -85,17 +86,6 @@ export default function ProfilePage() {
       return `${user.firstName} ${user.lastName}`;
     }
     return user?.email || "User";
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   return (

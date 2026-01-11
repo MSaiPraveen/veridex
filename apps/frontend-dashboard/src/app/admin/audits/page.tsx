@@ -52,16 +52,17 @@ function AdminAuditsPage() {
   useEffect(() => {
     const search = searchParams.get('search');
     if (search) {
+      // eslint-disable-next-line
       setFilters(prev => ({ ...prev, search }));
     }
   }, [searchParams]);
-  
+
   const { data, isLoading, error, refetch } = useAuditLogs({
     page: page.toString(),
     limit: "20",
     ...filters,
   });
-  
+
   const { data: stats } = useAuditStats(30);
 
   const audits = data?.data || [];

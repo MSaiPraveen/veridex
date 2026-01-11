@@ -1,7 +1,7 @@
 'use client';
 
 import { Icons } from '@/components/ui/icons';
-import { ProductScope, ProductFilters, GlobalProductFilters } from './types';
+import { ProductFilters, GlobalProductFilters } from './types';
 
 // ============================================
 // Filter Options
@@ -143,7 +143,7 @@ export function OrgProductsFilters({
               </span>
             )}
           </div>
-          
+
           {activeFilterCount > 0 && (
             <button
               onClick={onReset}
@@ -245,7 +245,7 @@ export function GlobalProductsFilters({
               </span>
             )}
           </div>
-          
+
           {activeFilterCount > 0 && (
             <button
               onClick={onReset}

@@ -21,15 +21,9 @@ export default function MerchantProfilePage() {
   const approvedProducts = products.filter((p: Product) =>
     p.status === 'APPROVED' || p.complianceStatus === 'COMPLIANT'
   ).length;
-  const pendingProducts = products.filter((p: Product) =>
-    p.status === 'PENDING_REVIEW' || p.complianceStatus === 'PENDING'
-  ).length;
   const complianceRate = totalProducts > 0 ? Math.round((approvedProducts / totalProducts) * 100) : 0;
 
   const totalDocuments = documents.length;
-  const activeDocuments = documents.filter((d: Document) =>
-    d.status === 'SUCCESS' || !d.status
-  ).length;
 
   const getDisplayStatus = (product: Product) => {
     const status = product.status || product.complianceStatus || 'PENDING';
@@ -161,8 +155,8 @@ export default function MerchantProfilePage() {
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'overview'
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                   }`}
               >
                 Overview
@@ -170,8 +164,8 @@ export default function MerchantProfilePage() {
               <button
                 onClick={() => setActiveTab('products')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'products'
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                   }`}
               >
                 Products ({totalProducts})
@@ -179,8 +173,8 @@ export default function MerchantProfilePage() {
               <button
                 onClick={() => setActiveTab('documents')}
                 className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'documents'
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                   }`}
               >
                 Documents ({totalDocuments})

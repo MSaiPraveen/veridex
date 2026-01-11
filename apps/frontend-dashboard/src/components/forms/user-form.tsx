@@ -45,11 +45,16 @@ export function UserForm({ isOpen, onClose, onSubmit, user }: UserFormProps) {
   // Reset form when user changes
   useEffect(() => {
     if (user) {
+       
       setFirstName(user.firstName || '');
+       
       setLastName(user.lastName || '');
+       
       setRole(user.role);
+       
       setStatus(user.status);
     }
+     
     setErrors({});
   }, [user, isOpen]);
 

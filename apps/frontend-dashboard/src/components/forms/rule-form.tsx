@@ -26,50 +26,50 @@ const SEVERITIES = [
 ];
 
 const CONDITION_TEMPLATES = [
-  { 
-    value: 'thc_limit', 
+  {
+    value: 'thc_limit',
     label: 'THC Content Limit',
     condition: { '<=': [{ var: 'product.thcContent' }, 0.3] },
     description: 'Verify THC content is below threshold',
   },
-  { 
-    value: 'cbd_required', 
+  {
+    value: 'cbd_required',
     label: 'CBD Content Required',
     condition: { '>': [{ var: 'product.cbdContent' }, 0] },
     description: 'Ensure CBD content is present',
   },
-  { 
-    value: 'has_lab_report', 
+  {
+    value: 'has_lab_report',
     label: 'Lab Report Required',
     condition: { some: [{ var: 'documents' }, { '===': [{ var: '.type' }, 'LAB_REPORT'] }] },
     description: 'Require at least one lab report document',
   },
-  { 
-    value: 'has_coa', 
+  {
+    value: 'has_coa',
     label: 'Certificate of Analysis Required',
     condition: { some: [{ var: 'documents' }, { '===': [{ var: '.type' }, 'COA'] }] },
     description: 'Require Certificate of Analysis',
   },
-  { 
-    value: 'valid_license', 
+  {
+    value: 'valid_license',
     label: 'Valid License Required',
     condition: { some: [{ var: 'documents' }, { and: [{ '===': [{ var: '.type' }, 'LICENSE'] }, { '===': [{ var: '.status' }, 'SUCCESS'] }] }] },
     description: 'Require valid active license document',
   },
-  { 
-    value: 'batch_tracking', 
+  {
+    value: 'batch_tracking',
     label: 'Batch Tracking Required',
     condition: { and: [{ '!!': { var: 'product.batchNumber' } }, { '!!': { var: 'product.lotNumber' } }] },
     description: 'Require batch and lot number tracking',
   },
-  { 
-    value: 'expiry_date', 
+  {
+    value: 'expiry_date',
     label: 'Valid Expiry Date',
     condition: { '>': [{ var: 'product.expiresAt' }, { now: [] }] },
     description: 'Product must not be expired',
   },
-  { 
-    value: 'custom', 
+  {
+    value: 'custom',
     label: 'Custom Condition (JSON)',
     condition: {},
     description: 'Define your own JSON Logic condition',
@@ -107,30 +107,53 @@ export function RuleForm({ isOpen, onClose, onSubmit, rule }: RuleFormProps) {
   // Reset form when rule changes
   useEffect(() => {
     if (rule) {
+       
       setRuleId(rule.ruleId);
+       
       setName(rule.name);
+       
       setDescription(rule.description);
+       
       setCategory(rule.category);
+       
       setSeverity(rule.severity);
+       
       setConditionTemplate('custom');
+       
       setCustomCondition(JSON.stringify(rule.condition, null, 2));
+       
       setReasonCode(rule.failure.reasonCode || 'CUSTOM');
+       
       setFailureMessage(rule.failure.message);
+       
       setJurisdiction(rule.metadata?.jurisdiction || '');
+       
       setSource(rule.metadata?.source || '');
     } else {
+       
       setRuleId('');
+       
       setName('');
+       
       setDescription('');
+       
       setCategory('CANNABIS');
+       
       setSeverity('BLOCKER');
+       
       setConditionTemplate('thc_limit');
+       
       setCustomCondition('');
+       
       setReasonCode('COMPLIANCE_CHECK_FAILED');
+       
       setFailureMessage('');
+       
       setJurisdiction('');
+       
       setSource('');
     }
+     
     setErrors({});
   }, [rule, isOpen]);
 
@@ -142,6 +165,7 @@ export function RuleForm({ isOpen, onClose, onSubmit, rule }: RuleFormProps) {
         .replace(/[^A-Z0-9]+/g, '_')
         .replace(/^_|_$/g, '')
         .substring(0, 30);
+       
       setRuleId(generatedId);
     }
   }, [name, rule, ruleId]);
@@ -151,6 +175,7 @@ export function RuleForm({ isOpen, onClose, onSubmit, rule }: RuleFormProps) {
     if (conditionTemplate !== 'custom' && !failureMessage) {
       const template = CONDITION_TEMPLATES.find(t => t.value === conditionTemplate);
       if (template) {
+         
         setFailureMessage(template.description);
       }
     }
@@ -182,7 +207,7 @@ export function RuleForm({ isOpen, onClose, onSubmit, rule }: RuleFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -233,7 +258,7 @@ export function RuleForm({ isOpen, onClose, onSubmit, rule }: RuleFormProps) {
           <h4 className="font-medium text-[var(--foreground)] border-b border-[var(--border)] pb-2">
             Basic Information
           </h4>
-          
+
           <FormRow cols={2}>
             <Input
               label="Rule ID"

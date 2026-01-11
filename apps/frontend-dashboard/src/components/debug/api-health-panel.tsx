@@ -30,6 +30,7 @@ export function ApiHealthPanel() {
 
   // Only show in development
   useEffect(() => {
+     
     setIsVisible(process.env.NODE_ENV === 'development');
   }, []);
 
@@ -70,7 +71,7 @@ export function ApiHealthPanel() {
     if (isOpen) {
       checkHealth();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isVisible) return null;

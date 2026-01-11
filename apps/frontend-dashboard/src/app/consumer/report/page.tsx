@@ -74,7 +74,7 @@ export default function ReportProductPage() {
             <div className="bg-[var(--muted)] rounded-lg p-4 mb-6">
               <p className="text-sm text-[var(--foreground-muted)]">Reference Number</p>
               <p className="text-lg font-mono font-bold text-[var(--foreground)]">
-                RPT-{Date.now().toString(36).toUpperCase()}
+                RPT-{form.productId.slice(-8).toUpperCase() || 'XXXXXXXX'}
               </p>
             </div>
             <div className="flex gap-3 justify-center">
@@ -120,7 +120,7 @@ export default function ReportProductPage() {
             <div>
               <h4 className="font-semibold text-amber-800 dark:text-amber-200">Important</h4>
               <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                Please only submit reports for genuine concerns. False reports may result in account restrictions. 
+                Please only submit reports for genuine concerns. False reports may result in account restrictions.
                 All reports are reviewed by our compliance team.
               </p>
             </div>

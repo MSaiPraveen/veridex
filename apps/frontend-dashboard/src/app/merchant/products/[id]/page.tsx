@@ -1,16 +1,14 @@
 'use client';
 
-import { DashboardLayout, PageHeader } from '@/components/layout';
+import { DashboardLayout } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
+import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { useProduct, useDocuments } from '@/lib/hooks';
 
 export default function ProductDetailPage() {
     const params = useParams();
-    const router = useRouter();
-    const { user } = useAuth();
 
     // Safely handle params
     const rawId = params?.id;
@@ -20,7 +18,7 @@ export default function ProductDetailPage() {
 
     // Documents query
     const docQuery = id ? { productId: id } : undefined;
-    const { data: documentsResponse, isLoading: docsLoading } = useDocuments(docQuery);
+    const { data: documentsResponse } = useDocuments(docQuery);
 
     const product = productResponse?.data;
     const documents = documentsResponse?.data || [];
@@ -203,10 +201,12 @@ export default function ProductDetailPage() {
                         <div className="card overflow-hidden">
                             <div className="aspect-square bg-muted flex items-center justify-center relative">
                                 {product.images && product.images.length > 0 ? (
-                                    <img
+                                    <Image
                                         src={product.images[0]}
                                         alt={product.name}
-                                        className="w-full h-full object-cover"
+                                        fill
+                                        className="object-cover"
+                                        unoptimized
                                     />
                                 ) : (
                                     <Icons.package className="text-muted-foreground opacity-20" size={64} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { api, API_BASE_URL, getAccessToken, PaginatedResponse, ApiResponse, ApiRequestError } from './api';
+import { api, PaginatedResponse, ApiResponse, ApiRequestError } from './api';
 
 // ============================================
 // Types

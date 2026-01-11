@@ -44,24 +44,22 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
   return (
     <button
       onClick={onChange}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        enabled ? 'bg-primary-600' : 'bg-[var(--border)]'
-      }`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enabled ? 'bg-primary-600' : 'bg-[var(--border)]'
+        }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          enabled ? 'translate-x-6' : 'translate-x-1'
-        }`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
       />
     </button>
   );
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  useAuth(); // Auth context required for protected route
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState('appearance');
-  
+
   // Notification settings
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
@@ -95,11 +93,10 @@ export default function SettingsPage() {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
-                    activeSection === section.id
-                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                      : 'hover:bg-[var(--background)] text-[var(--foreground-muted)]'
-                  }`}
+                  className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${activeSection === section.id
+                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                    : 'hover:bg-[var(--background)] text-[var(--foreground-muted)]'
+                    }`}
                 >
                   <IconComponent size={18} />
                   <span className="font-medium">{section.title}</span>
@@ -150,11 +147,10 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => theme === 'dark' && toggleTheme()}
-                      className={`p-4 rounded-lg border-2 transition-colors ${
-                        theme === 'light'
-                          ? 'border-primary-500 bg-white'
-                          : 'border-[var(--border)] bg-white hover:border-primary-300'
-                      }`}
+                      className={`p-4 rounded-lg border-2 transition-colors ${theme === 'light'
+                        ? 'border-primary-500 bg-white'
+                        : 'border-[var(--border)] bg-white hover:border-primary-300'
+                        }`}
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <Icons.sun size={16} className="text-amber-500" />
@@ -167,11 +163,10 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => theme === 'light' && toggleTheme()}
-                      className={`p-4 rounded-lg border-2 transition-colors ${
-                        theme === 'dark'
-                          ? 'border-primary-500 bg-gray-900'
-                          : 'border-[var(--border)] bg-gray-900 hover:border-primary-300'
-                      }`}
+                      className={`p-4 rounded-lg border-2 transition-colors ${theme === 'dark'
+                        ? 'border-primary-500 bg-gray-900'
+                        : 'border-[var(--border)] bg-gray-900 hover:border-primary-300'
+                        }`}
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <Icons.moon size={16} className="text-blue-400" />

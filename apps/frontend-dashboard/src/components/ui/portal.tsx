@@ -20,6 +20,7 @@ export function Portal({ children, show, onClickOutside }: PortalProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     return () => setMounted(false);
   }, []);
@@ -241,7 +242,7 @@ export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
     // Return a no-op function if outside provider (for API client)
-    return { showToast: () => {} };
+    return { showToast: () => { } };
   }
   return context;
 }
@@ -276,6 +277,7 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

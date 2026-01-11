@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout, PageHeader } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
-import { usePublicProducts, Product } from '@/lib/hooks';
+import { usePublicProducts } from '@/lib/hooks';
 import Link from 'next/link';
 
 const CATEGORIES = [
@@ -82,7 +82,7 @@ export default function ConsumerProductsPage() {
 
   // Fetch products with higher limit to see all (default is 20)
   const { data, isLoading, error, refetch } = usePublicProducts({ limit: '100' });
-  const products = data?.data || [];
+  const products = useMemo(() => data?.data || [], [data]);
 
   // Load favorites from localStorage
   useEffect(() => {
@@ -90,6 +90,7 @@ export default function ConsumerProductsPage() {
       const saved = localStorage.getItem('veridex_favorites');
       if (saved) {
         try {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setFavorites(JSON.parse(saved));
         } catch (e) {
           console.error('Failed to parse favorites', e);
@@ -115,6 +116,7 @@ export default function ConsumerProductsPage() {
   useEffect(() => {
     const search = searchParams.get('search');
     if (search) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchQuery(search);
     }
   }, [searchParams]);

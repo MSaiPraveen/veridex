@@ -60,6 +60,7 @@ function AdminUsersPage() {
   useEffect(() => {
     const search = searchParams.get('search');
     if (search) {
+      // eslint-disable-next-line
       setSearchQuery(search);
     }
   }, [searchParams]);

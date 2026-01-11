@@ -162,7 +162,9 @@ export default function ConsumerDashboard() {
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFavorites(getFavorites());
+
     setRecentlyViewed(getRecentlyViewed());
   }, []);
 
@@ -180,7 +182,6 @@ export default function ConsumerDashboard() {
   const compliantProducts = products.filter((p: Product) => p.complianceStatus === 'COMPLIANT').length;
   const totalProducts = products.length;
   const complianceRate = totalProducts > 0 ? Math.round((compliantProducts / totalProducts) * 100) : 0;
-  const pendingProducts = products.filter((p: Product) => p.complianceStatus === 'PENDING').length;
   const favoriteProducts = products.filter((p: Product) => favorites.includes(p._id));
   const trendingProducts = products.slice(0, 6);
 

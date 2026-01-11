@@ -102,14 +102,17 @@ export default function MerchantProductsPage() {
 
     if (urlSearch) {
       if (activeTab === 'organization') {
+         
         setOrgFilters(prev => ({ ...prev, search: urlSearch }));
       } else {
+         
         setGlobalFilters(prev => ({ ...prev, search: urlSearch }));
       }
     }
 
     // Open create modal if action=new
     if (action === 'new') {
+       
       setShowCreateModal(true);
       // Clean up the URL without refreshing
       window.history.replaceState({}, '', '/merchant/products');

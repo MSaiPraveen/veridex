@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import 'react';
 import { Icons } from '@/components/ui/icons';
 import { Product, ProductScope, ProductPermission } from './types';
-import { 
-  ProductStatusBadge, 
-  ComplianceBar, 
-  ImportedBadge, 
+import {
+  ProductStatusBadge,
+  ComplianceBar,
+  ImportedBadge,
   SyncStatusBadge,
-  OriginBadge,
-  PriceDisplay 
+  PriceDisplay
 } from './ProductBadges';
 import { Pagination } from '@/components/ui/table';
 
@@ -66,7 +65,7 @@ export function ProductsTable({
   const canEdit = permissions.includes('products:edit');
   const canDelete = permissions.includes('products:delete');
   const canImport = permissions.includes('products:import');
-  
+
   const allSelected = products.length > 0 && products.every(p => selectedIds.has(p._id));
   const someSelected = products.some(p => selectedIds.has(p._id)) && !allSelected;
 
@@ -111,7 +110,7 @@ export function ProductsTable({
                   className="w-4 h-4 rounded border-[var(--border)] text-primary-600 focus:ring-primary-500"
                 />
               </th>
-              
+
               {/* Product */}
               <SortableHeader
                 label="Product"
@@ -121,7 +120,7 @@ export function ProductsTable({
                 onSort={onSort}
                 className="min-w-[280px]"
               />
-              
+
               {/* Category */}
               <SortableHeader
                 label="Category"
@@ -131,12 +130,12 @@ export function ProductsTable({
                 onSort={onSort}
                 className="w-32"
               />
-              
+
               {/* Status */}
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider w-32">
                 Status
               </th>
-              
+
               {/* Price */}
               <SortableHeader
                 label="Price"
@@ -146,19 +145,19 @@ export function ProductsTable({
                 onSort={onSort}
                 className="w-28"
               />
-              
+
               {/* Compliance */}
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider w-32">
                 Compliance
               </th>
-              
+
               {/* Origin / Sync (for org tab) */}
               {!isGlobal && (
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider w-32">
                   Origin
                 </th>
               )}
-              
+
               {/* Updated */}
               <SortableHeader
                 label="Updated"
@@ -168,22 +167,22 @@ export function ProductsTable({
                 onSort={onSort}
                 className="w-28"
               />
-              
+
               {/* Actions */}
               <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider w-32">
                 Actions
               </th>
             </tr>
           </thead>
-          
+
           <tbody className="divide-y divide-[var(--border)]">
             {products.map((product) => (
-              <tr 
+              <tr
                 key={product._id}
                 className={`
                   group transition-colors
-                  ${selectedIds.has(product._id) 
-                    ? 'bg-primary-50/50 dark:bg-primary-900/10' 
+                  ${selectedIds.has(product._id)
+                    ? 'bg-primary-50/50 dark:bg-primary-900/10'
                     : 'hover:bg-[var(--muted)]/50'
                   }
                 `}
@@ -248,8 +247,8 @@ export function ProductsTable({
 
                 {/* Price */}
                 <td className="px-4 py-3">
-                  <PriceDisplay 
-                    price={product.price} 
+                  <PriceDisplay
+                    price={product.price}
                     currency={product.currency}
                     isOverridden={!!product.overrides?.price}
                   />
@@ -294,7 +293,7 @@ export function ProductsTable({
                       icon={<Icons.eye size={15} />}
                       tooltip="View details"
                     />
-                    
+
                     {/* Audit (for org products) */}
                     {!isGlobal && (
                       <ActionButton
@@ -379,16 +378,16 @@ function SortableHeader({
   className = '',
 }: SortableHeaderProps) {
   const isActive = sortColumn === column;
-  
+
   return (
-    <th 
+    <th
       className={`px-4 py-3 text-left text-xs font-semibold text-[var(--foreground-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--foreground)] transition-colors ${className}`}
       onClick={() => onSort(column)}
     >
       <div className="flex items-center gap-1.5">
         {label}
-        <Icons.chevronDown 
-          size={14} 
+        <Icons.chevronDown
+          size={14}
           className={`transition-transform ${isActive && sortDirection === 'asc' ? 'rotate-180' : ''} ${isActive ? 'text-primary-500' : 'opacity-50'}`}
         />
       </div>

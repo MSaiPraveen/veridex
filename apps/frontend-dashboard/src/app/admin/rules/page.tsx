@@ -167,6 +167,7 @@ export default function AdminRulesPage() {
   useEffect(() => {
     const search = searchParams.get('search');
     if (search) {
+       
       setSearchQuery(search);
     }
   }, [searchParams]);

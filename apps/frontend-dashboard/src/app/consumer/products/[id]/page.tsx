@@ -6,6 +6,7 @@ import { DashboardLayout, PageHeader } from '@/components/layout';
 import { Icons } from '@/components/ui/icons';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Document {
   _id: string;
@@ -205,10 +206,13 @@ function DocumentCard({ document }: { document: Document }) {
             </div>
             <div className="p-6 overflow-auto max-h-[calc(90vh-80px)]">
               {document.mimeType?.startsWith('image/') ? (
-                <img
+                <Image
                   src={document.url || `/api/documents/${document._id}/view`}
                   alt={document.originalName}
+                  width={800}
+                  height={600}
                   className="max-w-full h-auto rounded-lg mx-auto"
+                  unoptimized
                 />
               ) : document.mimeType === 'application/pdf' ? (
                 <iframe

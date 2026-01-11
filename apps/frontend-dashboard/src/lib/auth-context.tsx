@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api, setTokens, clearTokens, getAccessToken, hasValidTokens, ApiResponse, ApiRequestError, setToastCallback } from '@/lib/api';
-import { useRouter, usePathname } from 'next/navigation';
+import { api, setTokens, clearTokens, hasValidTokens, ApiResponse, ApiRequestError, setToastCallback } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/portal';
 
 /**
@@ -92,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
   const { showToast } = useToast();
 
   // Connect API client to toast system
@@ -137,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.data) {
         const { user: loggedInUser, tokens } = response.data;
-        
+
         // Role validation - ensure user is logging in through correct portal
         if (expectedRole && loggedInUser.role !== expectedRole) {
           // Admin trying to login through consumer portal, etc.
@@ -147,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setTokens(tokens.accessToken, tokens.refreshToken);
         setUser(loggedInUser);
-        
+
         // Redirect to role-specific dashboard
         router.push(getRoleDashboard(loggedInUser.role));
       }
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { user: registeredUser, tokens } = response.data;
         setTokens(tokens.accessToken, tokens.refreshToken);
         setUser(registeredUser);
-        
+
         // Redirect to role-specific dashboard
         router.push(getRoleDashboard(registeredUser.role));
       }
