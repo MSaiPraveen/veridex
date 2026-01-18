@@ -1,10 +1,99 @@
+# =====================================================
+# Veridex Ingress Configuration
+# Production-ready with TLS/HTTPS
+# =====================================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: veridex-ingress
   namespace: veridex
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    # NGINX Ingress Controller settings
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # HSTS (HTTP Strict Transport Security)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Rate limiting at ingress level (backup to application-level)
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    
+    # Enable CORS (if needed at ingress level)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.veridex.io,https://admin.veridex.io"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Request-ID"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    
+    # Cert-manager for automatic TLS certificates
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # TLS Configuration
+  tls:
+    - hosts:
+        - api.veridex.io
+        - app.veridex.io
+        - admin.veridex.io
+      secretName: veridex-tls-secret
+  rules:
+    # API Gateway
+    - host: api.veridex.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 3000
+    # Frontend Dashboard (Consumer + Merchant)
+    - host: app.veridex.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-dashboard
+                port:
+                  number: 3000
+    # Admin Portal
+    - host: admin.veridex.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-portal
+                port:
+                  number: 4000
+
+---
+# =====================================================
+# Development Ingress (for local/staging)
+# =====================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: veridex-ingress-dev
+  namespace: veridex
+  annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
@@ -29,3 +118,4 @@ spec:
                 name: frontend-dashboard
                 port:
                   number: 3000
+

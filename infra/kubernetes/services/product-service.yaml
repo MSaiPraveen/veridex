@@ -57,15 +57,39 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "300m"
-          livenessProbe:
+          # Startup probe - allows time for app initialization
+          startupProbe:
             httpGet:
-              path: /health
-              port: 3004
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
+              path: /health/live
               port: 3004
             initialDelaySeconds: 5
             periodSeconds: 5
+            failureThreshold: 30  # 5s * 30 = 150s max startup time
+          # Liveness probe - restart if process is unhealthy
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3004
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness probe - only route traffic when dependencies ready
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3004
+            periodSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 3
+---
+# PodDisruptionBudget - ensure availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: product-service-pdb
+  namespace: veridex
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: product-service

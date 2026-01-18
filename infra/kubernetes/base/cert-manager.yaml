@@ -1,0 +1,89 @@
+# =====================================================
+# Cert-Manager Configuration for Veridex
+# Automated TLS Certificate Management with Let's Encrypt
+# =====================================================
+#
+# Prerequisites:
+# 1. Install cert-manager in your cluster:
+#    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.0/cert-manager.yaml
+#
+# 2. Wait for cert-manager to be ready:
+#    kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n cert-manager --timeout=60s
+#
+# 3. Apply this configuration:
+#    kubectl apply -f cert-manager.yaml
+# =====================================================
+
+---
+# ClusterIssuer for Let's Encrypt Production
+# Use this for production certificates
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email for certificate expiry notifications
+    email: security@veridex.io
+    # Secret to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    # HTTP-01 challenge solver
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+
+---
+# ClusterIssuer for Let's Encrypt Staging
+# Use this for testing (higher rate limits, but untrusted certs)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # Let's Encrypt staging server
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: security@veridex.io
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+
+---
+# Certificate resource for Veridex domains
+# This will automatically request and renew certificates
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: veridex-tls
+  namespace: veridex
+spec:
+  # Secret where the certificate will be stored
+  secretName: veridex-tls-secret
+  # How long before expiry to renew
+  renewBefore: 720h  # 30 days
+  # Certificate duration
+  duration: 2160h    # 90 days (Let's Encrypt default)
+  # Which issuer to use
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+  # Common name (optional in modern TLS)
+  commonName: api.veridex.io
+  # All domains to include in the certificate (SAN)
+  dnsNames:
+    - api.veridex.io
+    - app.veridex.io
+    - admin.veridex.io
+  # Private key settings
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always

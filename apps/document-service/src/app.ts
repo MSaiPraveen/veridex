@@ -1,7 +1,10 @@
 import Fastify, { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
+import mongoose from 'mongoose';
 import { documentRoutes } from './routes/document.routes';
 import { adminReviewRoutes } from './routes/admin-review.routes';
 import { ServiceError } from './errors/service.errors';
+
+const startTime = Date.now();
 
 export const app = Fastify({ 
   logger: {
@@ -101,6 +104,59 @@ app.setNotFoundHandler((_request, reply) => {
       message: 'Route not found',
     },
   });
+});
+
+// ============================================
+// Health Check Endpoints
+// ============================================
+
+// Liveness probe - basic check that process is running
+app.get('/health/live', async (_request, reply) => {
+  return reply.status(200).send({
+    status: 'ok',
+    service: 'document-service',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+  });
+});
+
+// Readiness probe - check all dependencies
+app.get('/health/ready', async (_request, reply) => {
+  const checks: Record<string, { status: string; latency?: number; error?: string }> = {};
+  let isReady = true;
+
+  // Check MongoDB connection
+  const mongoStart = Date.now();
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db?.admin().ping();
+      checks.mongodb = { status: 'ok', latency: Date.now() - mongoStart };
+    } else {
+      checks.mongodb = { status: 'error', error: 'Not connected' };
+      isReady = false;
+    }
+  } catch (error) {
+    checks.mongodb = { 
+      status: 'error', 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      latency: Date.now() - mongoStart,
+    };
+    isReady = false;
+  }
+
+  const statusCode = isReady ? 200 : 503;
+  return reply.status(statusCode).send({
+    status: isReady ? 'ready' : 'not_ready',
+    service: 'document-service',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+    checks,
+  });
+});
+
+// Legacy health endpoint for backward compatibility
+app.get('/health', async (_request, reply) => {
+  return reply.status(200).send({ status: 'ok' });
 });
 
 // Register routes

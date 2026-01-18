@@ -48,7 +48,7 @@ export async function buildApp() {
   });
 
   await app.register(requestIdPlugin);
-  // await app.register(rateLimitPlugin);
+  await app.register(rateLimitPlugin);
   await app.register(validationPlugin);
 
   // JWT extraction hook - MUST run before admin security plugin
@@ -71,7 +71,61 @@ export async function buildApp() {
   // Inject user context headers for downstream services
   await app.register(userContextPlugin);
 
-  // Health check
+  // ==================== HEALTH CHECK ROUTES ====================
+  const startTime = Date.now();
+
+  /**
+   * Liveness probe - is the process alive?
+   */
+  app.get('/health/live', async () => ({
+    status: 'healthy',
+    service: 'api-gateway',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+  }));
+
+  /**
+   * Readiness probe - is the service ready to accept traffic?
+   * Checks Redis (used for rate limiting)
+   */
+  app.get('/health/ready', async (request, reply) => {
+    const checks: Record<string, { status: 'up' | 'down'; latency?: number; message?: string }> = {};
+    let isHealthy = true;
+
+    // Check Redis (required for rate limiting)
+    const redisStart = Date.now();
+    try {
+      const { redis } = await import('./config/redis');
+      await redis.ping();
+      checks.redis = { status: 'up', latency: Date.now() - redisStart };
+    } catch (error) {
+      checks.redis = { 
+        status: 'down', 
+        message: error instanceof Error ? error.message : 'Unknown error',
+        latency: Date.now() - redisStart,
+      };
+      // Redis failure is degraded, not unhealthy (rate limiting is backup protection)
+      // isHealthy = false;
+    }
+
+    const response = {
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      service: 'api-gateway',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      checks,
+    };
+
+    if (!isHealthy) {
+      return reply.status(503).send(response);
+    }
+
+    return response;
+  });
+
+  /**
+   * Legacy health endpoint
+   */
   app.get('/health', async () => ({
     status: 'ok',
     service: 'api-gateway',

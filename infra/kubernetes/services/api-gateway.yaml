@@ -22,7 +22,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: api-gateway
@@ -31,6 +31,16 @@ spec:
       labels:
         app: api-gateway
     spec:
+      # Ensure pods are spread across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: api-gateway
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: api-gateway
           image: veridex/api-gateway:latest
@@ -42,22 +52,77 @@ spec:
                 name: veridex-secrets
             - configMapRef:
                 name: veridex-config
+          env:
+            - name: NODE_ENV
+              value: "production"
           resources:
             requests:
               memory: "128Mi"
               cpu: "100m"
             limits:
               memory: "256Mi"
-              cpu: "300m"
+              cpu: "500m"
+          # Startup probe
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            failureThreshold: 30
+            periodSeconds: 2
+          # Liveness probe
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: 3000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 0
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness probe
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 3000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 0
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: veridex
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: veridex
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

@@ -1,15 +1,50 @@
+# Dependencies
 node_modules
+**/node_modules
+
+# Build outputs (we build inside Docker)
+# Don't ignore dist - we need it for local builds
+.next
+**/.next
+
+# Test files
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+**/tests
+coverage
+**/.nyc_output
+
+# Development files
 .git
 .gitignore
-*.md
-!README.md
 .env
 .env.*
+!.env.example
 *.log
+*.lock
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
 .DS_Store
-coverage
-.nyc_output
-dist
-*.tgz
-.next
+Thumbs.db
+
+# Documentation (except required READMEs)
+*.md
+!README.md
+!ARCHITECTURE.md
+
+# Misc
+*.tsbuildinfo
+.eslintcache
+.prettiercache
+
+# Frontend apps (not needed for backend services)
 apps/frontend-dashboard
+apps/admin-portal
+

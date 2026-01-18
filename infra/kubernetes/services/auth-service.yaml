@@ -45,6 +45,8 @@ spec:
           env:
             - name: PORT
               value: "3001"
+            - name: NODE_ENV
+              value: "production"
             - name: MONGO_URI
               valueFrom:
                 secretKeyRef:
@@ -57,15 +59,40 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "300m"
+          # Startup probe - allows time for initial connection to DB
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 3001
+            failureThreshold: 30
+            periodSeconds: 2
+          # Liveness probe - restart container if process is stuck
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/live
               port: 3001
-            initialDelaySeconds: 10
+            initialDelaySeconds: 0
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness probe - only route traffic when DB is connected
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 3001
-            initialDelaySeconds: 5
+            initialDelaySeconds: 0
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+# Pod Disruption Budget - ensure availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-service-pdb
+  namespace: veridex
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auth-service

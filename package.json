@@ -18,11 +18,24 @@
     "dev:user": "npm run dev --workspace=user-org-service",
     "dev:frontend": "npm run dev --workspace=frontend-dashboard",
     "typecheck": "tsc --build",
-    "clean": "rimraf packages/*/dist apps/*/dist"
+    "clean": "rimraf packages/*/dist apps/*/dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:auth": "vitest run --project auth-service",
+    "test:product": "vitest run --project product-service",
+    "test:document": "vitest run --project document-service",
+    "test:compliance": "vitest run --project compliance-service",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^3.0.0",
+    "@vitest/ui": "^3.0.0",
+    "mongodb-memory-server": "^10.0.0",
     "rimraf": "^5.0.5",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^3.0.0"
   },
   "dependencies": {
     "compliance-service": "^1.0.0"
