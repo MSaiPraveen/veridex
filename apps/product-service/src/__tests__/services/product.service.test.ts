@@ -12,6 +12,7 @@ vi.mock('kafkajs', () => ({
       connect: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
       send: vi.fn().mockResolvedValue({ topicPartitions: [] }),
+      on: vi.fn(),
     })),
     consumer: vi.fn(() => ({
       connect: vi.fn().mockResolvedValue(undefined),
@@ -20,6 +21,13 @@ vi.mock('kafkajs', () => ({
       run: vi.fn().mockResolvedValue(undefined),
     })),
   })),
+  logLevel: {
+    NOTHING: 0,
+    ERROR: 1,
+    WARN: 2,
+    INFO: 4,
+    DEBUG: 5,
+  },
 }));
 
 // Mock environment
@@ -34,6 +42,10 @@ vi.mock('../../config/env', () => ({
 import { ProductService } from '../../services/product.service';
 import { ProductRepo } from '../../repositories/product.repo';
 import { NotFoundError, ConflictError, ValidationError } from '../../errors/service.errors';
+
+// Valid MongoDB ObjectIds for testing
+const TEST_MERCHANT_ID = '507f1f77bcf86cd799439011';
+const TEST_ORG_ID = '507f1f77bcf86cd799439012';
 
 describe('ProductService', () => {
   beforeAll(async () => {
@@ -51,10 +63,10 @@ describe('ProductService', () => {
   describe('create', () => {
     it('should create a product successfully', async () => {
       const input = {
-        merchantId: 'merchant123',
+        merchantId: TEST_MERCHANT_ID,
         name: 'Test Product',
         sku: 'TEST-001',
-        category: 'Electronics',
+        category: 'FLOWER',
         description: 'A test product',
         price: 99.99,
       };
@@ -74,7 +86,7 @@ describe('ProductService', () => {
         scope: 'GLOBAL' as const,
         name: 'Global Product',
         sku: 'GLOBAL-001',
-        category: 'General',
+        category: 'OTHER',
       };
 
       const product = await ProductService.create(input);
@@ -88,7 +100,7 @@ describe('ProductService', () => {
         scope: 'ORGANIZATION' as const,
         name: 'Org Product',
         sku: 'ORG-001',
-        category: 'General',
+        category: 'OTHER',
         // No merchantId or organizationId
       };
 
@@ -97,10 +109,10 @@ describe('ProductService', () => {
 
     it('should throw ConflictError for duplicate SKU', async () => {
       const input = {
-        merchantId: 'merchant123',
+        merchantId: TEST_MERCHANT_ID,
         name: 'Product 1',
         sku: 'DUP-SKU',
-        category: 'Electronics',
+        category: 'FLOWER',
       };
 
       await ProductService.create(input);
@@ -115,10 +127,10 @@ describe('ProductService', () => {
   describe('getById', () => {
     it('should get product by ID', async () => {
       const created = await ProductService.create({
-        merchantId: 'merchant123',
+        merchantId: TEST_MERCHANT_ID,
         name: 'Find Me',
         sku: 'FIND-001',
-        category: 'Electronics',
+        category: 'FLOWER',
       });
 
       const product = await ProductService.getById(String(created._id));
@@ -137,10 +149,10 @@ describe('ProductService', () => {
   describe('update', () => {
     it('should update product fields', async () => {
       const created = await ProductService.create({
-        merchantId: 'merchant123',
+        merchantId: TEST_MERCHANT_ID,
         name: 'Original Name',
         sku: 'UPD-001',
-        category: 'Electronics',
+        category: 'FLOWER',
       });
 
       const updated = await ProductService.update(String(created._id), {
@@ -159,16 +171,16 @@ describe('ProductService', () => {
     });
   });
 
-  describe('delete', () => {
-    it('should soft delete a product', async () => {
+  describe('deactivate', () => {
+    it('should soft delete (deactivate) a product', async () => {
       const created = await ProductService.create({
-        merchantId: 'merchant123',
+        merchantId: TEST_MERCHANT_ID,
         name: 'Delete Me',
         sku: 'DEL-001',
-        category: 'Electronics',
+        category: 'FLOWER',
       });
 
-      await ProductService.delete(String(created._id));
+      await ProductService.deactivate(String(created._id));
 
       // Product should still exist but be inactive
       const product = await ProductRepo.findById(String(created._id));
@@ -182,8 +194,8 @@ describe('ProductService', () => {
       // Create test products
       for (let i = 1; i <= 5; i++) {
         await ProductService.create({
-          merchantId: 'merchant123',
-          organizationId: 'org123',
+          merchantId: TEST_MERCHANT_ID,
+          organizationId: TEST_ORG_ID,
           name: `Product ${i}`,
           sku: `LIST-00${i}`,
           category: i <= 3 ? 'FLOWER' : 'EDIBLE',
@@ -193,7 +205,7 @@ describe('ProductService', () => {
 
     it('should list products with pagination', async () => {
       const result = await ProductService.getAll({
-        organizationId: 'org123',
+        organizationId: TEST_ORG_ID,
         page: 1,
         limit: 3,
       });
@@ -206,7 +218,7 @@ describe('ProductService', () => {
 
     it('should filter by category', async () => {
       const result = await ProductService.getAll({
-        organizationId: 'org123',
+        organizationId: TEST_ORG_ID,
         category: 'FLOWER',
       });
 
@@ -218,7 +230,7 @@ describe('ProductService', () => {
 
     it('should search by name', async () => {
       const result = await ProductService.getAll({
-        organizationId: 'org123',
+        organizationId: TEST_ORG_ID,
         search: 'Product 1',
       });
 

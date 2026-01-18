@@ -14,8 +14,16 @@ vi.mock('kafkajs', () => ({
       connect: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
       send: vi.fn().mockResolvedValue({ topicPartitions: [] }),
+      on: vi.fn(),
     })),
   })),
+  logLevel: {
+    NOTHING: 0,
+    ERROR: 1,
+    WARN: 2,
+    INFO: 4,
+    DEBUG: 5,
+  },
 }));
 
 // Mock environment before imports
@@ -119,24 +127,27 @@ describe('Auth Service', () => {
   });
 
   describe('login', () => {
-    const testUser = {
-      email: 'login@example.com',
-      password: 'Password123!',
-      role: Role.CONSUMER,
-      firstName: 'Test',
-    };
+    let testEmail: string;
+    const password = 'Password123!';
 
     beforeEach(async () => {
-      await register(testUser);
+      // Use unique email per test to avoid token collisions
+      testEmail = `login-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+      await register({
+        email: testEmail,
+        password,
+        role: Role.CONSUMER,
+        firstName: 'Test',
+      });
     });
 
     it('should login with valid credentials', async () => {
       const result = await login({
-        email: testUser.email,
-        password: testUser.password,
+        email: testEmail,
+        password,
       });
 
-      expect(result.user.email).toBe(testUser.email);
+      expect(result.user.email).toBe(testEmail);
       expect(result.tokens.accessToken).toBeDefined();
       expect(result.tokens.refreshToken).toBeDefined();
     });
@@ -144,7 +155,7 @@ describe('Auth Service', () => {
     it('should throw InvalidCredentialsError for wrong password', async () => {
       await expect(
         login({
-          email: testUser.email,
+          email: testEmail,
           password: 'WrongPassword123!',
         })
       ).rejects.toThrow(InvalidCredentialsError);
@@ -163,31 +174,32 @@ describe('Auth Service', () => {
       // Fail 5 times
       for (let i = 0; i < 5; i++) {
         await expect(
-          login({ email: testUser.email, password: 'wrong' })
+          login({ email: testEmail, password: 'wrong' })
         ).rejects.toThrow(InvalidCredentialsError);
       }
 
       // 6th attempt should throw AccountLockedError
       await expect(
-        login({ email: testUser.email, password: testUser.password })
+        login({ email: testEmail, password })
       ).rejects.toThrow(AccountLockedError);
     });
 
     it('should throw AccountDisabledError for inactive user', async () => {
       // Deactivate user
-      const user = await UserModel.findOne({ email: testUser.email });
+      const user = await UserModel.findOne({ email: testEmail });
       await UserRepo.setActive(String(user?._id), false);
 
       await expect(
-        login({ email: testUser.email, password: testUser.password })
+        login({ email: testEmail, password })
       ).rejects.toThrow(AccountDisabledError);
     });
   });
 
   describe('logout', () => {
     it('should revoke a single refresh token', async () => {
+      const uniqueEmail = `logout-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
       const { tokens } = await register({
-        email: 'logout@example.com',
+        email: uniqueEmail,
         password: 'Password123!',
         role: Role.CONSUMER,
       });
@@ -198,15 +210,16 @@ describe('Auth Service', () => {
     });
 
     it('should revoke all tokens for a user', async () => {
+      const uniqueEmail = `logoutall-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
       const { user, tokens } = await register({
-        email: 'logoutall@example.com',
+        email: uniqueEmail,
         password: 'Password123!',
         role: Role.CONSUMER,
       });
 
       // Login again to create another token
       await login({
-        email: 'logoutall@example.com',
+        email: uniqueEmail,
         password: 'Password123!',
       });
 
@@ -221,8 +234,9 @@ describe('Auth Service', () => {
 
   describe('getCurrentUser', () => {
     it('should return user by id', async () => {
+      const uniqueEmail = `getuser-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
       const { user } = await register({
-        email: 'getuser@example.com',
+        email: uniqueEmail,
         password: 'Password123!',
         role: Role.CONSUMER,
         firstName: 'Get',
@@ -232,7 +246,7 @@ describe('Auth Service', () => {
       const result = await getCurrentUser(user.id);
 
       expect(result).toBeDefined();
-      expect(result?.email).toBe('getuser@example.com');
+      expect(result?.email).toBe(uniqueEmail);
     });
 
     it('should return null for non-existent user', async () => {

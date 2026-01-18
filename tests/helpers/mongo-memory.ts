@@ -35,11 +35,21 @@ export async function disconnectTestDB(): Promise<void> {
 
 /**
  * Clear all collections (for test isolation)
+ * Only deletes documents, keeps indexes intact for proper constraint testing
  */
 export async function clearTestDB(): Promise<void> {
   const collections = mongoose.connection.collections;
   for (const key in collections) {
     await collections[key].deleteMany({});
+  }
+  
+  // Ensure indexes are synced (this recreates any missing indexes)
+  for (const modelName of mongoose.modelNames()) {
+    try {
+      await mongoose.model(modelName).syncIndexes();
+    } catch {
+      // Ignore errors on syncing indexes
+    }
   }
 }
 

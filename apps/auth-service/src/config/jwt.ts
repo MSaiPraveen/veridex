@@ -1,4 +1,5 @@
 import { sign, verify, Secret, JwtPayload, SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import { env } from './env';
 import { InvalidTokenError, TokenExpiredError } from '../errors/auth.errors';
 
@@ -40,6 +41,7 @@ export const signAccessToken = (payload: Omit<TokenPayload, 'iat' | 'exp'>): str
     expiresIn: getAccessTokenExpiresIn(),
     issuer: 'veridex-auth',
     audience: 'veridex-api',
+    jwtid: randomUUID(), // Unique JWT ID ensures each token is unique
   };
   return sign(payload, accessSecret, options);
 };
@@ -49,6 +51,7 @@ export const signRefreshToken = (payload: Omit<TokenPayload, 'iat' | 'exp'>): st
     expiresIn: getRefreshTokenExpiresIn(),
     issuer: 'veridex-auth',
     audience: 'veridex-api',
+    jwtid: randomUUID(), // Unique JWT ID ensures each token is unique
   };
   return sign(payload, refreshSecret, options);
 };

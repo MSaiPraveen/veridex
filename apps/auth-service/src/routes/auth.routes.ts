@@ -217,16 +217,4 @@ export async function authRoutes(app: FastifyInstance) {
       data: { userId, organizationId },
     });
   });
-
-  /**
-   * GET /health
-   * Health check endpoint
-   */
-  app.get('/health', async (_req: FastifyRequest, reply: FastifyReply) => {
-    return reply.send({
-      status: 'ok',
-      service: 'auth-service',
-      timestamp: new Date().toISOString(),
-    });
-  });
 }

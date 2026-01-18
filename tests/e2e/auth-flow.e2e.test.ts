@@ -20,6 +20,7 @@ vi.mock('kafkajs', () => ({
       connect: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
       send: vi.fn().mockResolvedValue({ topicPartitions: [] }),
+      on: vi.fn(),
     })),
     consumer: vi.fn(() => ({
       connect: vi.fn().mockResolvedValue(undefined),
@@ -28,6 +29,13 @@ vi.mock('kafkajs', () => ({
       run: vi.fn().mockResolvedValue(undefined),
     })),
   })),
+  logLevel: {
+    NOTHING: 0,
+    ERROR: 1,
+    WARN: 2,
+    INFO: 4,
+    DEBUG: 5,
+  },
 }));
 
 // Mock environment
@@ -56,7 +64,7 @@ describe('E2E: User Authentication Flow', () => {
   });
 
   afterAll(async () => {
-    await authApp.close();
+    await authApp?.close();
     await disconnectTestDB();
   });
 

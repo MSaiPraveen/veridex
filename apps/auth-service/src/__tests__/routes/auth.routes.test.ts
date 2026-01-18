@@ -15,8 +15,16 @@ vi.mock('kafkajs', () => ({
       connect: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
       send: vi.fn().mockResolvedValue({ topicPartitions: [] }),
+      on: vi.fn(),
     })),
   })),
+  logLevel: {
+    NOTHING: 0,
+    ERROR: 1,
+    WARN: 2,
+    INFO: 4,
+    DEBUG: 5,
+  },
 }));
 
 // Mock environment
