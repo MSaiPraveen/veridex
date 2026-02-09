@@ -148,8 +148,8 @@ export async function documentRoutes(app: FastifyInstance) {
       // Build headers
       const headers: Record<string, string> = {
         'x-request-id': request.id,
-        'x-user-id': user.sub,
-        'x-user-role': user.role,
+        'x-user-id': user.sub || '',
+        'x-user-role': user.role || 'MERCHANT',
         ...formData.getHeaders(),
       };
       

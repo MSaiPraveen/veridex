@@ -50,6 +50,7 @@ interface ReviewItem {
   assignedTo?: string;
   ocrConfidence?: number;
   extractedData?: Record<string, any>;
+  extractedFields?: Record<string, { value: string; confidence: number }>;
   complianceStatus?: string;
   complianceScore?: number;
   complianceReasons?: string[];

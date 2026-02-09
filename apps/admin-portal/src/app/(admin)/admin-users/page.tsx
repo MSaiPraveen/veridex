@@ -15,7 +15,8 @@ import {
   XCircle,
   Loader2,
   Copy,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { PermissionGate, useAdminPermissions } from '@/components/auth/permission-gate';
 import { ActionConfirmDialog } from '@/components/ui/action-confirm-dialog';
