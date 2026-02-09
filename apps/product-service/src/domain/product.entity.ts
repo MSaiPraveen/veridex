@@ -11,7 +11,7 @@ export interface IProductBase {
   
   // CRITICAL: Scope & Ownership
   scope: ProductScope;
-  merchantId?: Types.ObjectId;       // User who created (optional for global)
+  merchantId?: string;       // Organization ID stored as string
   organizationId?: Types.ObjectId;   // Required for ORGANIZATION scope
   sourceProductId?: Types.ObjectId;  // Original global product if imported
   
@@ -91,7 +91,7 @@ const ProductSchema = new Schema<IProduct>(
       required: true,
       index: true,
     },
-    merchantId: { type: Schema.Types.ObjectId, index: true },
+    merchantId: { type: String, index: true },
     organizationId: { type: Schema.Types.ObjectId, index: true },
     sourceProductId: { type: Schema.Types.ObjectId, ref: 'Product' },
     

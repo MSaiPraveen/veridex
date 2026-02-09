@@ -71,6 +71,8 @@ export const DocumentService = {
       extractionStatus: 'PENDING',
       status: 'ACTIVE',
       isActive: true,
+      reviewStatus: 'PENDING_REVIEW', // Document starts as pending review
+      complianceStatus: 'PENDING',    // Compliance not yet checked
     } as unknown as Partial<IDocument>);
 
     await emitDocumentCreated(document);
@@ -99,21 +101,27 @@ export const DocumentService = {
         throw new ExtractionError('Extraction produced no usable data');
       }
 
-      // Update with results
+      // Update with results and set reviewStatus to PENDING_REVIEW
       await DocumentRepo.updateExtraction(
         doc._id.toString(),
         extracted,
         'SUCCESS'
       );
+      
+      // Set document to PENDING_REVIEW so it appears in admin queue
+      await DocumentRepo.update(doc._id.toString(), {
+        reviewStatus: 'PENDING_REVIEW',
+        complianceStatus: 'PENDING',
+      } as any);
 
       await emitExtractionCompleted(doc, extracted);
       
       // Emit document processed event (legacy compatibility)
       await emitDocumentProcessed({
         documentId: doc._id.toString(),
-        ownerId: doc.ownerId.toString(),
+        ownerId: doc.ownerId?.toString() || '',
         productId: doc.productId?.toString(),
-        organizationId: doc.organizationId.toString(),
+        organizationId: doc.organizationId?.toString() || '',
         extracted,
       });
 
@@ -137,9 +145,9 @@ export const DocumentService = {
       await emitExtractionFailed(doc, err.message);
       await emitDocumentProcessed({
         documentId: doc._id.toString(),
-        ownerId: doc.ownerId.toString(),
+        ownerId: doc.ownerId?.toString() || '',
         productId: doc.productId?.toString(),
-        organizationId: doc.organizationId.toString(),
+        organizationId: doc.organizationId?.toString() || '',
         failureReason: err.message,
       });
     }
@@ -182,6 +190,13 @@ export const DocumentService = {
    */
   async getByProduct(productId: string) {
     return DocumentRepo.findByProduct(productId);
+  },
+
+  /**
+   * Get document counts for multiple products
+   */
+  async getCountsByProductIds(productIds: string[]): Promise<Record<string, number>> {
+    return DocumentRepo.countByProductIds(productIds);
   },
 
   /**

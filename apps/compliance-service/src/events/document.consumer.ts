@@ -14,6 +14,7 @@ const TOPICS = [
   'document.processed',
   'document.compliance.ready',
   'product.created',
+  'document.review.decision',
 ];
 
 // Dead Letter Queue topic for failed messages
@@ -78,6 +79,9 @@ async function handleMessage(payload: EachMessagePayload): Promise<void> {
       break;
     case 'product.created':
       await handleProductCreated(data);
+      break;
+    case 'document.review.decision':
+      await handleDocumentReviewDecision(data);
       break;
     default:
       console.log(`[Compliance Consumer] Unknown topic: ${topic}`);
@@ -243,5 +247,111 @@ export async function stopDocumentConsumer(): Promise<void> {
   if (retryConsumer) {
     await retryConsumer.stop();
     retryConsumer = null;
+  }
+}
+
+// ================== NEW: Document Review Decision Handler ==================
+
+interface DocumentReviewDecisionEvent {
+  documentId: string;
+  productId?: string;
+  organizationId: string;
+  documentType: string;
+  decision: 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  reviewedBy: string;
+  reviewNote?: string;
+}
+
+/**
+ * Handle document review decision event
+ * Recalculates product compliance status based on all associated documents
+ */
+async function handleDocumentReviewDecision(event: DocumentReviewDecisionEvent): Promise<void> {
+  console.log('[Compliance Consumer] Processing review decision:', event.documentId, event.decision);
+
+  if (!event.productId) {
+    console.log('[Compliance Consumer] No productId, skipping compliance recalculation');
+    return;
+  }
+
+  try {
+    // Recalculate product compliance based on the decision
+    await recalculateProductCompliance(event.productId, event.organizationId);
+  } catch (error) {
+    console.error('[Compliance Consumer] Failed to recalculate product compliance:', error);
+  }
+}
+
+/**
+ * Recalculate product compliance status based on all associated documents
+ * Uses HTTP call to product service since we need to update product status
+ */
+async function recalculateProductCompliance(productId: string, organizationId: string): Promise<void> {
+  const DOCUMENT_SERVICE_URL = process.env.DOCUMENT_SERVICE_URL || 'http://document-service:3005';
+  const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://product-service:3004';
+
+  try {
+    // Fetch all documents for this product
+    const docsResponse = await fetch(
+      `${DOCUMENT_SERVICE_URL}/documents?productId=${productId}&status=ACTIVE`,
+      { headers: { 'x-user-role': 'ADMIN' } }
+    );
+    
+    if (!docsResponse.ok) {
+      console.error('[Compliance Consumer] Failed to fetch product documents');
+      return;
+    }
+    
+    const docsData = await docsResponse.json();
+    const documents = docsData.data || [];
+    
+    // Determine compliance status based on document review statuses
+    let complianceStatus: 'PENDING' | 'COMPLIANT' | 'NON_COMPLIANT' | 'UNDER_REVIEW' = 'PENDING';
+    
+    if (documents.length === 0) {
+      complianceStatus = 'PENDING';
+    } else {
+      const hasRejected = documents.some((d: any) => d.reviewStatus === 'REJECTED');
+      const hasFlagged = documents.some((d: any) => d.reviewStatus === 'FLAGGED');
+      const hasPending = documents.some((d: any) => 
+        !d.reviewStatus || d.reviewStatus === 'PENDING_REVIEW'
+      );
+      const allApproved = documents.every((d: any) => d.reviewStatus === 'APPROVED');
+      
+      if (hasRejected) {
+        complianceStatus = 'NON_COMPLIANT';
+      } else if (hasFlagged) {
+        complianceStatus = 'UNDER_REVIEW';
+      } else if (hasPending) {
+        complianceStatus = 'PENDING';
+      } else if (allApproved) {
+        complianceStatus = 'COMPLIANT';
+      }
+    }
+    
+    // Update product compliance status
+    const updateResponse = await fetch(
+      `${PRODUCT_SERVICE_URL}/products/${productId}/compliance`,
+      {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': 'ADMIN',
+        },
+        body: JSON.stringify({
+          complianceStatus,
+          lastComplianceCheck: new Date().toISOString(),
+          complianceNotes: `Auto-calculated based on ${documents.length} document(s)`,
+        }),
+      }
+    );
+    
+    if (updateResponse.ok) {
+      console.log(`[Compliance Consumer] Updated product ${productId} compliance to ${complianceStatus}`);
+    } else {
+      console.error('[Compliance Consumer] Failed to update product compliance status');
+    }
+  } catch (error) {
+    console.error('[Compliance Consumer] Error recalculating product compliance:', error);
   }
 }

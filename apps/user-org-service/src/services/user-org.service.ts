@@ -241,6 +241,13 @@ export const OrganizationService = {
   },
 
   /**
+   * Get multiple organizations by IDs (for batch lookup)
+   */
+  async getByIds(ids: string[]): Promise<IOrganization[]> {
+    return OrganizationRepo.findByIds(ids);
+  },
+
+  /**
    * Get all organizations with pagination
    */
   async getAll(options: OrgQueryOptions = {}) {
@@ -452,6 +459,13 @@ export const MembershipService = {
    */
   async getUserMemberships(userId: string): Promise<IMembership[]> {
     return MembershipRepo.findByUser(userId);
+  },
+
+  /**
+   * Get membership by ID
+   */
+  async getMembershipById(membershipId: string): Promise<IMembership | null> {
+    return MembershipRepo.findById(membershipId);
   },
 
   /**

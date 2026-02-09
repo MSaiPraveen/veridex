@@ -295,4 +295,107 @@ export async function adminAuthRoutes(app: FastifyInstance) {
       return handleError(error, reply);
     }
   });
+
+  // ============================================
+  // ADMIN USER MANAGEMENT ROUTES
+  // ============================================
+
+  /**
+   * GET /admin/auth/admins
+   * Get all admin users (for admin management)
+   */
+  app.get('/admin/auth/admins', async (request, reply) => {
+    try {
+      const query = request.query as { status?: string; role?: string; search?: string };
+      const admins = await adminAuthService.getAllAdmins(query);
+      
+      return reply.send({
+        success: true,
+        data: admins,
+        total: admins.length,
+      });
+    } catch (error) {
+      return handleError(error, reply);
+    }
+  });
+
+  /**
+   * POST /admin/auth/admins
+   * Create a new admin user
+   */
+  app.post<{ Body: { email: string; password?: string; firstName: string; lastName?: string; role: string; createdBy?: string } }>(
+    '/admin/auth/admins',
+    async (request, reply) => {
+      try {
+        const { email, password, firstName, lastName, role, createdBy } = request.body;
+        
+        if (!email || !firstName || !role) {
+          throw new AdminAuthError('VALIDATION_ERROR', 'Missing required fields: email, firstName, role', 400);
+        }
+
+        // Validate password if provided
+        if (password && password.length < 8) {
+          throw new AdminAuthError('VALIDATION_ERROR', 'Password must be at least 8 characters', 400);
+        }
+
+        const validRoles = ['ADMIN', 'COMPLIANCE_REVIEWER', 'VIEWER'];
+        if (!validRoles.includes(role)) {
+          throw new AdminAuthError('VALIDATION_ERROR', `Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
+        }
+
+        const result = await adminAuthService.createAdmin({
+          email,
+          password,
+          firstName,
+          lastName,
+          role: role as 'ADMIN' | 'COMPLIANCE_REVIEWER' | 'VIEWER',
+          createdBy,
+        });
+
+        return reply.status(201).send({
+          success: true,
+          message: 'Admin user created successfully',
+          data: result.admin,
+          temporaryPassword: result.temporaryPassword,
+        });
+      } catch (error) {
+        return handleError(error, reply);
+      }
+    }
+  );
+
+  /**
+   * PATCH /admin/auth/admins/:id/status
+   * Update admin status (activate/deactivate/unlock)
+   */
+  app.patch<{ Params: { id: string }; Body: { status: string; reason?: string } }>(
+    '/admin/auth/admins/:id/status',
+    async (request, reply) => {
+      try {
+        const { id } = request.params;
+        const { status, reason } = request.body;
+        const updatedBy = request.headers['x-user-id'] as string || 'system';
+        
+        const validStatuses = ['ACTIVE', 'DEACTIVATED', 'LOCKED'];
+        if (!validStatuses.includes(status)) {
+          throw new AdminAuthError('VALIDATION_ERROR', `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
+        }
+
+        const admin = await adminAuthService.updateAdminStatus(
+          id, 
+          status as 'ACTIVE' | 'DEACTIVATED' | 'LOCKED',
+          updatedBy,
+          reason
+        );
+
+        return reply.send({
+          success: true,
+          message: `Admin status updated to ${status}`,
+          data: admin,
+        });
+      } catch (error) {
+        return handleError(error, reply);
+      }
+    }
+  );
 }

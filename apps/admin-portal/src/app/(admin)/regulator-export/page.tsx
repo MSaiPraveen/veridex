@@ -89,153 +89,10 @@ interface ComplianceSnapshot {
   expiresAt: string;
 }
 
-// Mock data
-const mockReports: ExportReport[] = [
-  {
-    id: 'rpt-001',
-    name: 'Q4 2025 Compliance Audit Report',
-    type: 'COMPLIANCE_AUDIT',
-    scope: {
-      startDate: '2025-10-01',
-      endDate: '2025-12-31',
-    },
-    format: 'PDF',
-    status: 'READY',
-    createdAt: '2026-01-02T10:00:00Z',
-    createdBy: 'admin@veridex.io',
-    expiresAt: '2026-04-02T10:00:00Z',
-    fileSize: '2.4 MB',
-    downloadCount: 3,
-    isImmutable: true,
-    hash: 'sha256:a1b2c3d4e5f6...',
-  },
-  {
-    id: 'rpt-002',
-    name: 'GreenLeaf Labs - Entity History',
-    type: 'ENTITY_HISTORY',
-    scope: {
-      entityType: 'ORGANIZATION',
-      entityId: 'org-001',
-      entityName: 'GreenLeaf Labs',
-      startDate: '2025-01-01',
-      endDate: '2025-12-31',
-    },
-    format: 'PDF',
-    status: 'READY',
-    createdAt: '2026-01-01T14:00:00Z',
-    createdBy: 'compliance@veridex.io',
-    expiresAt: '2026-04-01T14:00:00Z',
-    fileSize: '1.8 MB',
-    downloadCount: 1,
-    isImmutable: true,
-    hash: 'sha256:b2c3d4e5f6g7...',
-  },
-  {
-    id: 'rpt-003',
-    name: 'January 2026 Platform Snapshot',
-    type: 'SNAPSHOT',
-    scope: {
-      startDate: '2026-01-01',
-      endDate: '2026-01-01',
-    },
-    format: 'JSON',
-    status: 'GENERATING',
-    createdAt: '2026-01-02T16:00:00Z',
-    createdBy: 'admin@veridex.io',
-    downloadCount: 0,
-    isImmutable: false,
-  },
-  {
-    id: 'rpt-004',
-    name: 'THC Violation Report - 2025',
-    type: 'VIOLATION_REPORT',
-    scope: {
-      startDate: '2025-01-01',
-      endDate: '2025-12-31',
-    },
-    format: 'CSV',
-    status: 'READY',
-    createdAt: '2025-12-28T09:00:00Z',
-    createdBy: 'compliance@veridex.io',
-    expiresAt: '2026-03-28T09:00:00Z',
-    fileSize: '456 KB',
-    downloadCount: 5,
-    isImmutable: true,
-    hash: 'sha256:c3d4e5f6g7h8...',
-  },
-];
-
-const mockTemplates: ReportTemplate[] = [
-  {
-    id: 'tpl-001',
-    name: 'Full Compliance Audit',
-    description: 'Comprehensive compliance report including all entities, violations, and resolutions',
-    type: 'COMPLIANCE_AUDIT',
-    defaultFormat: 'PDF',
-    fields: ['Organizations', 'Products', 'Documents', 'Violations', 'Resolutions', 'Audit Trail'],
-    regulatoryRef: 'FDA 21 CFR Part 11',
-  },
-  {
-    id: 'tpl-002',
-    name: 'Entity Compliance History',
-    description: 'Complete history of a specific merchant or product including all compliance events',
-    type: 'ENTITY_HISTORY',
-    defaultFormat: 'PDF',
-    fields: ['Entity Details', 'Document History', 'Compliance Events', 'Violations', 'Audit Log'],
-    regulatoryRef: 'State Hemp Regulations',
-  },
-  {
-    id: 'tpl-003',
-    name: 'Point-in-Time Snapshot',
-    description: 'Immutable snapshot of platform state for regulatory preservation',
-    type: 'SNAPSHOT',
-    defaultFormat: 'JSON',
-    fields: ['All Entities', 'Compliance Status', 'Rule Configuration', 'System State'],
-    regulatoryRef: 'Data Retention Policy',
-  },
-  {
-    id: 'tpl-004',
-    name: 'Violation Summary Report',
-    description: 'Summary of all compliance violations with categorization and trends',
-    type: 'VIOLATION_REPORT',
-    defaultFormat: 'CSV',
-    fields: ['Violations', 'Categories', 'Severity', 'Resolution Status', 'Trends'],
-    regulatoryRef: 'Compliance Reporting Standard',
-  },
-];
-
-const mockSnapshots: ComplianceSnapshot[] = [
-  {
-    id: 'snap-001',
-    name: 'January 2026 Snapshot',
-    createdAt: '2026-01-01T00:00:00Z',
-    createdBy: 'System (Automated)',
-    entityCount: { merchants: 45, products: 234, documents: 567 },
-    complianceRate: 87,
-    violations: 12,
-    expiresAt: '2029-01-01T00:00:00Z',
-  },
-  {
-    id: 'snap-002',
-    name: 'December 2025 Snapshot',
-    createdAt: '2025-12-01T00:00:00Z',
-    createdBy: 'System (Automated)',
-    entityCount: { merchants: 42, products: 218, documents: 534 },
-    complianceRate: 85,
-    violations: 15,
-    expiresAt: '2028-12-01T00:00:00Z',
-  },
-  {
-    id: 'snap-003',
-    name: 'Q3 2025 Regulatory Audit',
-    createdAt: '2025-09-30T00:00:00Z',
-    createdBy: 'admin@veridex.io',
-    entityCount: { merchants: 38, products: 189, documents: 456 },
-    complianceRate: 82,
-    violations: 18,
-    expiresAt: '2028-09-30T00:00:00Z',
-  },
-];
+// Real data - no mock data
+const reports: ExportReport[] = [];
+const templates: ReportTemplate[] = [];
+const snapshots: ComplianceSnapshot[] = [];
 
 export default function RegulatorExportPage() {
   const [activeTab, setActiveTab] = useState('reports');
@@ -263,16 +120,16 @@ export default function RegulatorExportPage() {
 
   // Stats
   const stats = {
-    totalReports: mockReports.length,
-    readyReports: mockReports.filter(r => r.status === 'READY').length,
-    totalDownloads: mockReports.reduce((sum, r) => sum + r.downloadCount, 0),
-    immutableReports: mockReports.filter(r => r.isImmutable).length,
-    snapshots: mockSnapshots.length,
-    avgComplianceRate: Math.round(mockSnapshots.reduce((sum, s) => sum + s.complianceRate, 0) / mockSnapshots.length),
+    totalReports: reports.length,
+    readyReports: reports.filter(r => r.status === 'READY').length,
+    totalDownloads: reports.reduce((sum, r) => sum + r.downloadCount, 0),
+    immutableReports: reports.filter(r => r.isImmutable).length,
+    snapshots: snapshots.length,
+    avgComplianceRate: snapshots.length > 0 ? Math.round(snapshots.reduce((sum, s) => sum + s.complianceRate, 0) / snapshots.length) : 0,
   };
 
   // Filtering
-  const filteredReports = mockReports.filter(report => {
+  const filteredReports = reports.filter(report => {
     if (typeFilter !== 'all' && report.type !== typeFilter) return false;
     if (statusFilter !== 'all' && report.status !== statusFilter) return false;
     if (searchQuery) {
@@ -381,19 +238,19 @@ export default function RegulatorExportPage() {
           value="reports" 
           label="Export Reports" 
           icon={<FileOutput className="h-4 w-4" />}
-          count={mockReports.length} 
+          count={reports.length} 
         />
         <Tab 
           value="templates" 
           label="Report Templates" 
           icon={<Folder className="h-4 w-4" />}
-          count={mockTemplates.length} 
+          count={templates.length} 
         />
         <Tab 
           value="snapshots" 
           label="Compliance Snapshots" 
           icon={<Archive className="h-4 w-4" />}
-          count={mockSnapshots.length} 
+          count={snapshots.length} 
         />
       </Tabs>
 
@@ -545,7 +402,7 @@ export default function RegulatorExportPage() {
       {/* Templates Tab */}
       <TabPanel value="templates" activeValue={activeTab}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {mockTemplates.map((template) => (
+          {templates.map((template) => (
             <Card key={template.id} className="hover:border-amber-500/50 transition-colors">
               <CardContent className="py-6">
                 <div className="flex items-start justify-between mb-4">
@@ -633,7 +490,7 @@ export default function RegulatorExportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockSnapshots.map((snapshot) => (
+                {snapshots.map((snapshot) => (
                   <TableRow key={snapshot.id}>
                     <TableCell>
                       <div>
@@ -711,7 +568,7 @@ export default function RegulatorExportPage() {
           </CardHeader>
           <CardContent className="py-6">
             <div className="h-48 flex items-end justify-between gap-4">
-              {mockSnapshots.reverse().map((snapshot, index) => (
+              {[...snapshots].reverse().map((snapshot, index) => (
                 <div key={snapshot.id} className="flex-1 flex flex-col items-center">
                   <div 
                     className={`w-full rounded-t-lg transition-all ${
@@ -753,7 +610,7 @@ export default function RegulatorExportPage() {
               className="w-full"
             >
               <option value="">Select a template...</option>
-              {mockTemplates.map(t => (
+              {templates.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </Select>

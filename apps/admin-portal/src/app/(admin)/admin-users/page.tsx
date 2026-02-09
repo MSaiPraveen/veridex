@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Users, 
   Search, 
@@ -8,139 +8,193 @@ import {
   Shield, 
   Eye, 
   Edit,
-  Key,
   Ban,
   RefreshCw,
-  Mail,
   Clock,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  MoreVertical,
-  Smartphone
+  Loader2,
+  Copy,
+  Check
 } from 'lucide-react';
 import { PermissionGate, useAdminPermissions } from '@/components/auth/permission-gate';
 import { ActionConfirmDialog } from '@/components/ui/action-confirm-dialog';
 import { AdminPermission, AdminRole, ROLE_DISPLAY_INFO } from '@/lib/admin-rbac';
+import { useAdminPortalUsers, useAdminUserActions, AdminPortalUser, AdminUserStatus } from '@/hooks/use-admin-portal-users';
 
-// Types
-interface AdminUser {
-  id: string;
-  email: string;
-  name: string;
-  role: AdminRole;
-  status: 'ACTIVE' | 'INACTIVE' | 'LOCKED' | 'PENDING_MFA';
-  mfaEnabled: boolean;
-  lastLogin?: string;
-  createdAt: string;
-  createdBy: string;
-  loginAttempts: number;
-  ipWhitelist?: string[];
+// Status display configuration
+const statusColors: Record<AdminUserStatus | 'DEACTIVATED', { bg: string; text: string; icon: typeof CheckCircle }> = {
+  ACTIVE: { bg: 'bg-emerald-100 dark:bg-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', icon: CheckCircle },
+  DEACTIVATED: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-400', icon: XCircle },
+  LOCKED: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400', icon: Ban },
+  PENDING_MFA: { bg: 'bg-emerald-100 dark:bg-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', icon: CheckCircle }, // Legacy - treat as active
+};
+
+// Copy button component for credentials
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <Check className="h-4 w-4 text-emerald-500" />
+      ) : (
+        <Copy className="h-4 w-4 text-slate-500" />
+      )}
+    </button>
+  );
 }
 
-const statusColors: Record<string, { bg: string; text: string; icon: typeof CheckCircle }> = {
-  ACTIVE: { bg: 'bg-emerald-100 dark:bg-emerald-500/20', text: 'text-emerald-700 dark:text-emerald-400', icon: CheckCircle },
-  INACTIVE: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-400', icon: XCircle },
-  LOCKED: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400', icon: Ban },
-  PENDING_MFA: { bg: 'bg-amber-100 dark:bg-amber-500/20', text: 'text-amber-700 dark:text-amber-400', icon: AlertTriangle },
-};
+// Helper to get display name
+function getDisplayName(admin: AdminPortalUser): string {
+  if (admin.firstName || admin.lastName) {
+    return [admin.firstName, admin.lastName].filter(Boolean).join(' ');
+  }
+  return admin.email.split('@')[0];
+}
+
+// Form state for creating new admin
+interface CreateAdminForm {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  role: string;
+}
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const [actionType, setActionType] = useState<'deactivate' | 'reactivate' | 'unlock' | 'resetMfa' | null>(null);
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminPortalUser | null>(null);
+  const [actionType, setActionType] = useState<'deactivate' | 'reactivate' | 'unlock' | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateAdminForm>({ name: '', email: '', password: '', confirmPassword: '', role: '' });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState<{ email: string } | null>(null);
   
   const permissions = useAdminPermissions();
   
-  // Mock data
-  const mockUsers: AdminUser[] = [
-    {
-      id: 'admin-001',
-      email: 'admin@veridex.io',
-      name: 'System Admin',
-      role: AdminRole.ADMIN,
-      status: 'ACTIVE',
-      mfaEnabled: true,
-      lastLogin: '2026-01-02T14:32:00Z',
-      createdAt: '2025-01-15T09:00:00Z',
-      createdBy: 'system',
-      loginAttempts: 0,
-    },
-    {
-      id: 'admin-002',
-      email: 'sarah.admin@veridex.io',
-      name: 'Sarah Miller',
-      role: AdminRole.ADMIN,
-      status: 'ACTIVE',
-      mfaEnabled: true,
-      lastLogin: '2026-01-02T10:15:00Z',
-      createdAt: '2025-06-20T14:30:00Z',
-      createdBy: 'admin-001',
-      loginAttempts: 0,
-    },
-    {
-      id: 'admin-003',
-      email: 'mike.admin@veridex.io',
-      name: 'Mike Johnson',
-      role: AdminRole.ADMIN,
-      status: 'LOCKED',
-      mfaEnabled: true,
-      lastLogin: '2025-12-28T09:00:00Z',
-      createdAt: '2025-08-10T11:00:00Z',
-      createdBy: 'admin-001',
-      loginAttempts: 5,
-    },
-    {
-      id: 'admin-004',
-      email: 'jane.admin@veridex.io',
-      name: 'Jane Smith',
-      role: AdminRole.ADMIN,
-      status: 'PENDING_MFA',
-      mfaEnabled: false,
-      createdAt: '2025-12-30T16:00:00Z',
-      createdBy: 'admin-001',
-      loginAttempts: 0,
-    },
-    {
-      id: 'admin-005',
-      email: 'alex.admin@veridex.io',
-      name: 'Alex Chen',
-      role: AdminRole.ADMIN,
-      status: 'INACTIVE',
-      mfaEnabled: true,
-      lastLogin: '2025-10-15T14:00:00Z',
-      createdAt: '2025-03-01T08:00:00Z',
-      createdBy: 'admin-001',
-      loginAttempts: 0,
-    },
-  ];
+  // Fetch admin portal users from auth-service
+  const { admins, loading, error, refresh } = useAdminPortalUsers();
+  const { createAdmin, updateStatus, loading: actionLoading } = useAdminUserActions();
   
-  const filteredUsers = mockUsers.filter(user => {
-    if (roleFilter !== 'ALL' && user.role !== roleFilter) return false;
-    if (statusFilter !== 'ALL' && user.status !== statusFilter) return false;
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        user.name.toLowerCase().includes(searchLower) ||
-        user.email.toLowerCase().includes(searchLower)
-      );
-    }
-    return true;
-  });
+  // Filter admins based on search and status
+  const filteredAdmins = useMemo(() => {
+    return admins.filter(admin => {
+      if (statusFilter !== 'ALL' && admin.status !== statusFilter) return false;
+      if (roleFilter !== 'ALL' && admin.role !== roleFilter) return false;
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const displayName = getDisplayName(admin);
+        return (
+          displayName.toLowerCase().includes(searchLower) ||
+          admin.email.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    });
+  }, [admins, searchQuery, roleFilter, statusFilter]);
   
-  const handleAction = (user: AdminUser, action: 'deactivate' | 'reactivate' | 'unlock' | 'resetMfa') => {
-    setSelectedUser(user);
+  const handleAction = (admin: AdminPortalUser, action: 'deactivate' | 'reactivate' | 'unlock') => {
+    setSelectedAdmin(admin);
     setActionType(action);
   };
   
   const executeAction = async () => {
-    // API call would go here
-    console.log(`${actionType} user:`, selectedUser?.id);
-    setSelectedUser(null);
+    if (!selectedAdmin || !actionType) return;
+    
+    try {
+      let status: 'ACTIVE' | 'DEACTIVATED' | 'LOCKED';
+      switch (actionType) {
+        case 'deactivate':
+          status = 'DEACTIVATED';
+          break;
+        case 'reactivate':
+        case 'unlock':
+          status = 'ACTIVE';
+          break;
+      }
+      
+      const result = await updateStatus(selectedAdmin.id, status, `${actionType} by admin`);
+      if (result.success) {
+        refresh();
+      }
+    } catch (err) {
+      console.error(`Failed to ${actionType} admin:`, err);
+    }
+    
+    setSelectedAdmin(null);
     setActionType(null);
+  };
+
+  // Handle create admin form submission
+  const handleCreateAdmin = async () => {
+    // Validate form
+    if (!createForm.name || !createForm.email || !createForm.password || !createForm.role) {
+      setCreateError('Please fill in all fields');
+      return;
+    }
+
+    if (createForm.password.length < 8) {
+      setCreateError('Password must be at least 8 characters');
+      return;
+    }
+
+    if (createForm.password !== createForm.confirmPassword) {
+      setCreateError('Passwords do not match');
+      return;
+    }
+
+    // Parse name into first and last name
+    const nameParts = createForm.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : firstName;
+
+    setCreateLoading(true);
+    setCreateError(null);
+
+    try {
+      const result = await createAdmin({
+        email: createForm.email,
+        password: createForm.password,
+        firstName,
+        lastName,
+        role: createForm.role as 'ADMIN' | 'COMPLIANCE_REVIEWER' | 'VIEWER',
+      });
+
+      if (result.success) {
+        setCreateSuccess({ email: createForm.email });
+        setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: '' });
+        refresh();
+      } else {
+        setCreateError(result.error || 'Failed to create admin user');
+      }
+    } catch (err) {
+      console.error('Failed to create admin:', err);
+      setCreateError('An unexpected error occurred');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  // Close create modal and reset state
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: '' });
+    setCreateError(null);
+    setCreateSuccess(null);
   };
   
   const getActionTitle = () => {
@@ -148,28 +202,54 @@ export default function AdminUsersPage() {
       case 'deactivate': return 'Deactivate Admin User';
       case 'reactivate': return 'Reactivate Admin User';
       case 'unlock': return 'Unlock Admin User';
-      case 'resetMfa': return 'Reset MFA';
       default: return '';
     }
   };
   
   const getActionDescription = () => {
+    const userName = selectedAdmin ? getDisplayName(selectedAdmin) : '';
     switch (actionType) {
-      case 'deactivate': return `Are you sure you want to deactivate ${selectedUser?.name}? They will lose access to the admin portal.`;
-      case 'reactivate': return `Are you sure you want to reactivate ${selectedUser?.name}? They will regain access to the admin portal.`;
-      case 'unlock': return `Are you sure you want to unlock ${selectedUser?.name}? Their login attempts will be reset.`;
-      case 'resetMfa': return `Are you sure you want to reset MFA for ${selectedUser?.name}? They will need to set up MFA again on next login.`;
+      case 'deactivate': return `Are you sure you want to deactivate ${userName}? They will lose access to the admin portal.`;
+      case 'reactivate': return `Are you sure you want to reactivate ${userName}? They will regain access to the admin portal.`;
+      case 'unlock': return `Are you sure you want to unlock ${userName}? Their login attempts will be reset.`;
       default: return '';
     }
   };
   
-  // Stats
-  const stats = {
-    total: mockUsers.length,
-    active: mockUsers.filter(u => u.status === 'ACTIVE').length,
-    locked: mockUsers.filter(u => u.status === 'LOCKED').length,
-    pendingMfa: mockUsers.filter(u => u.status === 'PENDING_MFA').length,
-  };
+  // Stats from real data
+  const stats = useMemo(() => ({
+    total: admins.length,
+    active: admins.filter(a => a.status === 'ACTIVE').length,
+    locked: admins.filter(a => a.status === 'LOCKED').length,
+    deactivated: admins.filter(a => a.status === 'DEACTIVATED').length,
+  }), [admins]);
+  
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+        <span className="ml-3 text-slate-600 dark:text-slate-400">Loading admin users...</span>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-slate-900 dark:text-white">Failed to load admin users</h3>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">{error}</p>
+        <button
+          onClick={() => refresh()}
+          className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -232,12 +312,12 @@ export default function AdminUsersPage() {
           </div>
           <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 p-4 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                <Smartphone className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <XCircle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
               </div>
               <div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Pending MFA</p>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pendingMfa}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Deactivated</p>
+                <p className="text-2xl font-bold text-slate-600 dark:text-slate-400">{stats.deactivated}</p>
               </div>
             </div>
           </div>
@@ -274,9 +354,8 @@ export default function AdminUsersPage() {
               >
                 <option value="ALL">All Status</option>
                 <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
+                <option value="DEACTIVATED">Deactivated</option>
                 <option value="LOCKED">Locked</option>
-                <option value="PENDING_MFA">Pending MFA</option>
               </select>
             </div>
           </div>
@@ -298,9 +377,6 @@ export default function AdminUsersPage() {
                     Status
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    MFA
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Last Login
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -309,25 +385,27 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
-                {filteredUsers.map((user) => {
-                  const StatusIcon = statusColors[user.status].icon;
-                  const roleInfo = ROLE_DISPLAY_INFO[user.role];
+                {filteredAdmins.map((admin) => {
+                  const StatusIcon = statusColors[admin.status]?.icon || CheckCircle;
+                  const statusStyle = statusColors[admin.status] || statusColors.ACTIVE;
+                  const roleInfo = ROLE_DISPLAY_INFO[admin.role as AdminRole] || ROLE_DISPLAY_INFO[AdminRole.ADMIN];
+                  const displayName = getDisplayName(admin);
                   
                   return (
-                    <tr key={user.id} className="bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <tr key={admin.id} className="bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
                             <span className="text-white font-semibold">
-                              {user.name.charAt(0)}
+                              {displayName.charAt(0).toUpperCase()}
                             </span>
                           </div>
                           <div>
                             <p className="font-medium text-slate-900 dark:text-white">
-                              {user.name}
+                              {displayName}
                             </p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                              {user.email}
+                              {admin.email}
                             </p>
                           </div>
                         </div>
@@ -341,34 +419,16 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[user.status].bg} ${statusColors[user.status].text}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
                           <StatusIcon className="h-3 w-3" />
-                          {user.status.replace('_', ' ')}
+                          {admin.status.replace('_', ' ')}
                         </span>
-                        {user.loginAttempts > 0 && (
-                          <span className="ml-2 text-xs text-red-500 dark:text-red-400">
-                            ({user.loginAttempts} failed attempts)
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {user.mfaEnabled ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                            <Smartphone className="h-4 w-4" />
-                            <span className="text-sm font-medium">Enabled</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="h-4 w-4" />
-                            <span className="text-sm font-medium">Not Set</span>
-                          </span>
-                        )}
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
-                        {user.lastLogin ? (
+                        {admin.lastLoginAt ? (
                           <div className="flex items-center gap-1.5">
                             <Clock className="h-4 w-4 text-slate-400" />
-                            {new Date(user.lastLogin).toLocaleString()}
+                            {new Date(admin.lastLoginAt).toLocaleString()}
                           </div>
                         ) : (
                           <span className="text-slate-400">Never</span>
@@ -386,44 +446,35 @@ export default function AdminUsersPage() {
                             </button>
                           </PermissionGate>
                           
-                          <PermissionGate permission={AdminPermission.ADMIN_RESET_MFA}>
-                            {user.mfaEnabled && (
-                              <button
-                                onClick={() => handleAction(user, 'resetMfa')}
-                                className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-colors"
-                                title="Reset MFA"
-                              >
-                                <Key className="h-4 w-4" />
-                              </button>
-                            )}
-                          </PermissionGate>
-                          
                           <PermissionGate permission={AdminPermission.ADMIN_DEACTIVATE}>
-                            {user.status === 'LOCKED' && (
+                            {admin.status === 'LOCKED' && (
                               <button
-                                onClick={() => handleAction(user, 'unlock')}
+                                onClick={() => handleAction(admin, 'unlock')}
                                 className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
                                 title="Unlock"
+                                disabled={actionLoading}
                               >
                                 <RefreshCw className="h-4 w-4" />
                               </button>
                             )}
                             
-                            {user.status === 'ACTIVE' && (
+                            {admin.status === 'ACTIVE' && (
                               <button
-                                onClick={() => handleAction(user, 'deactivate')}
+                                onClick={() => handleAction(admin, 'deactivate')}
                                 className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                                 title="Deactivate"
+                                disabled={actionLoading}
                               >
                                 <Ban className="h-4 w-4" />
                               </button>
                             )}
                             
-                            {user.status === 'INACTIVE' && (
+                            {admin.status === 'DEACTIVATED' && (
                               <button
-                                onClick={() => handleAction(user, 'reactivate')}
+                                onClick={() => handleAction(admin, 'reactivate')}
                                 className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
                                 title="Reactivate"
+                                disabled={actionLoading}
                               >
                                 <CheckCircle className="h-4 w-4" />
                               </button>
@@ -438,14 +489,14 @@ export default function AdminUsersPage() {
             </table>
           </div>
           
-          {filteredUsers.length === 0 && (
+          {filteredAdmins.length === 0 && (
             <div className="p-8 text-center">
               <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-900 dark:text-white">
                 No admin users found
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mt-1">
-                Try adjusting your filters
+                {admins.length === 0 ? 'Create your first admin user to get started' : 'Try adjusting your filters'}
               </p>
             </div>
           )}
@@ -453,8 +504,8 @@ export default function AdminUsersPage() {
         
         {/* Action Confirmation */}
         <ActionConfirmDialog
-          isOpen={!!selectedUser && !!actionType}
-          onClose={() => { setSelectedUser(null); setActionType(null); }}
+          isOpen={!!selectedAdmin && !!actionType}
+          onClose={() => { setSelectedAdmin(null); setActionType(null); }}
           onConfirm={executeAction}
           title={getActionTitle()}
           description={getActionDescription()}
@@ -462,7 +513,7 @@ export default function AdminUsersPage() {
           confirmText={actionType ? actionType.charAt(0).toUpperCase() + actionType.slice(1) : ''}
           auditMessage="This action will be logged in the security audit trail with your admin ID and timestamp."
           requireConfirmPhrase={actionType === 'deactivate'}
-          confirmPhrase={selectedUser?.email}
+          confirmPhrase={selectedAdmin?.email}
         />
         
         {/* Create Admin Modal */}
@@ -471,57 +522,133 @@ export default function AdminUsersPage() {
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full mx-4 border border-slate-200 dark:border-slate-700">
               <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-                  Add Admin User
+                  {createSuccess ? 'Admin Created Successfully' : 'Add Admin User'}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  Create a new administrator account
+                  {createSuccess ? 'The admin account has been created' : 'Create a new administrator account'}
                 </p>
               </div>
               
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Full Name
-                  </label>
-                  <input type="text" className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" placeholder="John Smith" />
+              {createSuccess ? (
+                // Success state
+                <div className="p-6 space-y-4">
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle className="h-5 w-5 text-emerald-500" />
+                      <span className="font-medium text-emerald-800 dark:text-emerald-300">Admin user created successfully!</span>
+                    </div>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                      Account created for <strong>{createSuccess.email}</strong>. They can now log in.
+                    </p>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Email Address
-                  </label>
-                  <input type="email" className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" placeholder="john@veridex.io" />
+              ) : (
+                // Form state
+                <div className="p-6 space-y-4">
+                  {createError && (
+                    <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg">
+                      <p className="text-sm text-red-700 dark:text-red-400">{createError}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Full Name
+                    </label>
+                    <input 
+                      type="text" 
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" 
+                      placeholder="John Smith" 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Email Address
+                    </label>
+                    <input 
+                      type="email" 
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" 
+                      placeholder="john@veridex.io" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Password
+                    </label>
+                    <input 
+                      type="password" 
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" 
+                      placeholder="••••••••" 
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Confirm Password
+                    </label>
+                    <input 
+                      type="password" 
+                      value={createForm.confirmPassword}
+                      onChange={(e) => setCreateForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" 
+                      placeholder="••••••••" 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Role
+                    </label>
+                    <select 
+                      value={createForm.role}
+                      onChange={(e) => setCreateForm(f => ({ ...f, role: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    >
+                      <option value="">Select a role...</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="COMPLIANCE_REVIEWER">Compliance Reviewer</option>
+                      <option value="VIEWER">Viewer</option>
+                    </select>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      <strong>Note:</strong> The new admin will be able to log in immediately after creation.
+                    </p>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Role
-                  </label>
-                  <select className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
-                    <option value="">Select a role...</option>
-                    <option value={AdminRole.ADMIN}>Admin</option>
-                  </select>
-                </div>
-                
-                <div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg">
-                  <p className="text-sm text-amber-800 dark:text-amber-300">
-                    <strong>Note:</strong> The new admin will receive an email invitation with a temporary password. 
-                    They will be required to set up MFA on first login.
-                  </p>
-                </div>
-              </div>
+              )}
               
               <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                 <button
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={closeCreateModal}
                   className="px-4 py-2 text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 font-medium rounded-lg transition-colors"
                 >
-                  Cancel
+                  {createSuccess ? 'Close' : 'Cancel'}
                 </button>
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-lg shadow-amber-500/25">
-                  <Plus className="h-4 w-4" />
-                  Create Admin
-                </button>
+                {!createSuccess && (
+                  <button 
+                    onClick={handleCreateAdmin}
+                    disabled={createLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {createLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    {createLoading ? 'Creating...' : 'Create Admin'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

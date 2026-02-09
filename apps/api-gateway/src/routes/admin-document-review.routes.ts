@@ -119,6 +119,103 @@ function buildQueryString(query: Record<string, unknown>): string {
   return qs ? `?${qs}` : '';
 }
 
+/**
+ * Fetch organization names for a list of organization IDs
+ */
+async function fetchOrganizationNames(
+  orgIds: string[], 
+  headers: Record<string, string>
+): Promise<Record<string, { name: string; type: string }>> {
+  if (orgIds.length === 0) return {};
+  
+  try {
+    const response = await fetch(`${services.userOrg}/organizations/batch`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: orgIds }),
+    });
+    
+    if (!response.ok) {
+      console.warn('Failed to fetch organization names:', response.status);
+      return {};
+    }
+    
+    const result = await response.json();
+    return result.success ? result.data : {};
+  } catch (error) {
+    console.warn('Error fetching organization names:', error);
+    return {};
+  }
+}
+
+/**
+ * Fetch product names for a list of product IDs
+ */
+async function fetchProductNames(
+  productIds: string[], 
+  headers: Record<string, string>
+): Promise<Record<string, { name: string; sku: string; category: string }>> {
+  if (productIds.length === 0) return {};
+  
+  try {
+    const response = await fetch(`${services.product}/products/batch`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: productIds }),
+    });
+    
+    if (!response.ok) {
+      console.warn('Failed to fetch product names:', response.status);
+      return {};
+    }
+    
+    const result = await response.json();
+    return result.success ? result.data : {};
+  } catch (error) {
+    console.warn('Error fetching product names:', error);
+    return {};
+  }
+}
+
+/**
+ * Enrich document data with organization and product names
+ */
+async function enrichDocumentsWithNames(
+  documents: any[],
+  headers: Record<string, string>
+): Promise<any[]> {
+  if (!documents || documents.length === 0) return documents;
+  
+  // Collect unique IDs
+  const orgIds = [...new Set(
+    documents
+      .map(d => d.organizationId)
+      .filter((id): id is string => !!id)
+  )];
+  
+  const productIds = [...new Set(
+    documents
+      .map(d => d.productId)
+      .filter((id): id is string => !!id)
+  )];
+  
+  // Fetch names in parallel
+  const [orgMap, productMap] = await Promise.all([
+    fetchOrganizationNames(orgIds, headers),
+    fetchProductNames(productIds, headers),
+  ]);
+  
+  // Enrich documents
+  return documents.map(doc => ({
+    ...doc,
+    organizationName: doc.organizationId ? (orgMap[doc.organizationId]?.name || 'Unknown Organization') : undefined,
+    organizationType: doc.organizationId ? orgMap[doc.organizationId]?.type : undefined,
+    productName: doc.productId ? (productMap[doc.productId]?.name || 'Unknown Product') : undefined,
+    productSku: doc.productId ? productMap[doc.productId]?.sku : undefined,
+    productCategory: doc.productId ? productMap[doc.productId]?.category : undefined,
+  }));
+}
+
 // ================== ROUTES ==================
 
 export async function adminDocumentReviewRoutes(app: FastifyInstance) {
@@ -137,7 +234,44 @@ export async function adminDocumentReviewRoutes(app: FastifyInstance) {
     preValidation: validateRequest({ query: adminReviewQuerySchema }),
   }, async (request, reply) => {
     const qs = buildQueryString(request.query as Record<string, unknown>);
-    return proxyToDocument(request, reply, 'GET', `/admin/review${qs}`);
+    const url = `${services.document}/admin/review${qs}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': request.id,
+      'x-user-id': request.headers['x-user-id'] as string || '',
+      'x-user-role': request.headers['x-user-role'] as string || 'ADMIN',
+    };
+    
+    if (request.headers.authorization) {
+      headers['Authorization'] = request.headers.authorization;
+    }
+    
+    try {
+      const response = await fetch(url, { method: 'GET', headers });
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        return reply.status(response.status).send(data);
+      }
+      
+      // Enrich documents with organization and product names
+      const enrichedDocs = await enrichDocumentsWithNames(
+        data.data?.documents || [],
+        headers
+      );
+      
+      return reply.send({
+        ...data,
+        data: {
+          ...data.data,
+          documents: enrichedDocs,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching documents for review:', error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
   });
 
   /**
@@ -257,5 +391,94 @@ export async function adminDocumentReviewRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     const params = request.params as { id: string };
     return proxyToDocument(request, reply, 'POST', `/documents/${params.id}/retry-extraction`);
+  });
+
+  /**
+   * GET /admin/organizations/:id/documents - Get organization's documents
+   * 
+   * Returns all documents uploaded by a specific organization
+   */
+  app.get('/admin/organizations/:id/documents', {
+    preHandler: requireRole([Role.ADMIN]),
+    preValidation: validateRequest({ params: documentIdParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToDocument(request, reply, 'GET', `/documents?organizationId=${params.id}`);
+  });
+
+  // ================== SHORTHAND ROUTES (for admin portal compatibility) ==================
+
+  /**
+   * GET /admin/review - Shorthand for /admin/documents/review
+   * Enriches response with organization and product names
+   */
+  app.get('/admin/review', {
+    preHandler: requireRole([Role.ADMIN]),
+    preValidation: validateRequest({ query: adminReviewQuerySchema }),
+  }, async (request, reply) => {
+    const qs = buildQueryString(request.query as Record<string, unknown>);
+    const url = `${services.document}/admin/review${qs}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': request.id,
+      'x-user-id': request.headers['x-user-id'] as string || '',
+      'x-user-role': request.headers['x-user-role'] as string || 'ADMIN',
+    };
+    
+    if (request.headers.authorization) {
+      headers['Authorization'] = request.headers.authorization;
+    }
+    
+    try {
+      const response = await fetch(url, { method: 'GET', headers });
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        return reply.status(response.status).send(data);
+      }
+      
+      // Enrich documents with organization and product names
+      const enrichedDocs = await enrichDocumentsWithNames(
+        data.data?.documents || [],
+        headers
+      );
+      
+      return reply.send({
+        ...data,
+        data: {
+          ...data.data,
+          documents: enrichedDocs,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching documents for review:', error);
+      return reply.status(500).send({ success: false, error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * GET /admin/review/:id - Shorthand for /admin/documents/review/:id
+   */
+  app.get('/admin/review/:id', {
+    preHandler: requireRole([Role.ADMIN]),
+    preValidation: validateRequest({ params: documentIdParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToDocument(request, reply, 'GET', `/admin/review/${params.id}`);
+  });
+
+  /**
+   * POST /admin/review/:id/decision - Shorthand for /admin/documents/review/:id/decision
+   */
+  app.post('/admin/review/:id/decision', {
+    preHandler: requireRole([Role.ADMIN]),
+    preValidation: validateRequest({
+      params: documentIdParamsSchema,
+      body: adminReviewDecisionSchema,
+    }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToDocument(request, reply, 'POST', `/admin/review/${params.id}/decision`);
   });
 }

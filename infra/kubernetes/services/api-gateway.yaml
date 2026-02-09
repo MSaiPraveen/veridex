@@ -31,6 +31,12 @@ spec:
       labels:
         app: api-gateway
     spec:
+      # Security: Run as non-root user
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       # Ensure pods are spread across nodes
       affinity:
         podAntiAffinity:
@@ -43,8 +49,15 @@ spec:
                 topologyKey: kubernetes.io/hostname
       containers:
         - name: api-gateway
-          image: veridex/api-gateway:latest
+          image: veridex/api-gateway:v1.0.0
           imagePullPolicy: Always
+          # Container security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3000
           envFrom:
@@ -55,6 +68,10 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+          # Writable temp directory for Node.js
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "128Mi"
@@ -87,6 +104,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
+      # Volumes for read-only filesystem
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 # Pod Disruption Budget
 apiVersion: policy/v1

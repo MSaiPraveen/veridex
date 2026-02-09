@@ -1,0 +1,44 @@
+# ===============================================
+# Auth Service - Development Dockerfile
+# Uses ts-node-dev for hot reloading
+# ===============================================
+
+FROM node:20-alpine
+
+# Install tini for proper signal handling
+RUN apk add --no-cache tini
+
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY packages/roles-permissions/package.json ./packages/roles-permissions/
+COPY packages/event-contracts/package.json ./packages/event-contracts/
+COPY packages/api-contracts/package.json ./packages/api-contracts/
+COPY packages/schemas/package.json ./packages/schemas/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/auth-service/package.json ./apps/auth-service/
+
+# Copy all package sources for workspace resolution
+COPY packages/ ./packages/
+
+# Copy auth-service source code
+COPY apps/auth-service/ ./apps/auth-service/
+
+# Install all dependencies (including dev dependencies for ts-node)
+RUN npm install --legacy-peer-deps
+
+# Set environment
+ENV NODE_ENV=development
+
+WORKDIR /app/apps/auth-service
+
+# Expose port
+EXPOSE 3001
+
+# Use tini as entrypoint
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Run with ts-node-dev for development
+CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "-r", "tsconfig-paths/register", "src/main.ts"]

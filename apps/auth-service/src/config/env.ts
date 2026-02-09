@@ -1,14 +1,16 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { requireSecret, requireEnv, getEnv } from '@veridex/shared';
 
-const envSchema = z.object({
-  PORT: z.string().default('3001'),
-  MONGO_URI: z.string(),
-  JWT_ACCESS_SECRET: z.string(),
-  JWT_REFRESH_SECRET: z.string(),
-  ACCESS_TOKEN_TTL: z.string(),
-  REFRESH_TOKEN_TTL: z.string(),
-  KAFKA_BROKER: z.string(),
-});
+// Use shared utilities for secret validation
+const isProduction = process.env.NODE_ENV === 'production';
 
-export const env = envSchema.parse(process.env);
+export const env = {
+  PORT: getEnv('PORT', '3001'),
+  MONGO_URI: requireEnv('MONGO_URI', 'mongodb://localhost:27017/veridex_auth'),
+  JWT_ACCESS_SECRET: requireSecret('JWT_ACCESS_SECRET', 'dev-access-secret-at-least-32-characters'),
+  JWT_REFRESH_SECRET: requireSecret('JWT_REFRESH_SECRET', 'dev-refresh-secret-at-least-32-characters'),
+  ACCESS_TOKEN_TTL: getEnv('ACCESS_TOKEN_TTL', '15m'),
+  REFRESH_TOKEN_TTL: getEnv('REFRESH_TOKEN_TTL', '7d'),
+  KAFKA_BROKER: getEnv('KAFKA_BROKER', 'localhost:9092'),
+};

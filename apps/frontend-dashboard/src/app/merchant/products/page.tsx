@@ -24,6 +24,7 @@ import {
   BulkImportSummary,
   ImportProductModal,
   ProductAuditPanel,
+  ProductDocumentsPanel,
   ProductsEmptyState,
 } from '@/components/merchant/products';
 
@@ -76,6 +77,7 @@ export default function MerchantProductsPage() {
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [importingProduct, setImportingProduct] = useState<Product | null>(null);
   const [auditProduct, setAuditProduct] = useState<Product | null>(null);
+  const [documentsProduct, setDocumentsProduct] = useState<Product | null>(null);
 
   // Bulk Actions
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -449,6 +451,7 @@ export default function MerchantProductsPage() {
           onDelete={(product) => setDeletingProduct(product)}
           onImport={(product) => setImportingProduct(product)}
           onViewAudit={(product) => setAuditProduct(product)}
+          onViewDocuments={(product) => setDocumentsProduct(product)}
         />
       )}
 
@@ -518,6 +521,14 @@ export default function MerchantProductsPage() {
         product={auditProduct}
         onDetachFromGlobal={() => console.log('Detach from global')}
         onReviewUpdates={() => console.log('Review updates')}
+      />
+
+      {/* Product Documents Panel */}
+      <ProductDocumentsPanel
+        isOpen={!!documentsProduct}
+        onClose={() => setDocumentsProduct(null)}
+        product={documentsProduct}
+        organizationId={user?.organizationId || ''}
       />
 
       {/* Bulk Import Summary */}

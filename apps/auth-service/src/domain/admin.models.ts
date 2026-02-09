@@ -110,7 +110,7 @@ const AdminUserSchema = new Schema<IAdminUser>(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'AdminUser',
-      required: true,
+      required: false, // Optional for system-created admins
     },
     deactivatedAt: Date,
     deactivatedBy: {

@@ -37,6 +37,7 @@ interface ProductsTableProps {
   onDelete: (product: Product) => void;
   onImport: (product: Product) => void;
   onViewAudit: (product: Product) => void;
+  onViewDocuments: (product: Product) => void;
 }
 
 export function ProductsTable({
@@ -60,6 +61,7 @@ export function ProductsTable({
   onDelete,
   onImport,
   onViewAudit,
+  onViewDocuments,
 }: ProductsTableProps) {
   const isGlobal = scope === 'global';
   const canEdit = permissions.includes('products:edit');
@@ -293,6 +295,16 @@ export function ProductsTable({
                       icon={<Icons.eye size={15} />}
                       tooltip="View details"
                     />
+
+                    {/* Documents (for org products) */}
+                    {!isGlobal && (
+                      <ActionButton
+                        onClick={() => onViewDocuments(product)}
+                        icon={<Icons.fileText size={15} />}
+                        tooltip="Manage documents"
+                        variant="primary"
+                      />
+                    )}
 
                     {/* Audit (for org products) */}
                     {!isGlobal && (

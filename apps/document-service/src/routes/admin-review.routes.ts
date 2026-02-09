@@ -6,14 +6,24 @@ import { ValidationError, ForbiddenError, NotFoundError } from '../errors/servic
 import { 
   emitDocumentRejected, 
   emitAdminReviewRequired,
+  emitDocumentReviewDecision,
 } from '../events/document.producer';
+
+// ================== HELPER FUNCTIONS ==================
+
+// Admin roles that are allowed to access review endpoints
+const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COMPLIANCE_REVIEWER'];
+
+function isAdminRole(role: string | undefined): boolean {
+  return ADMIN_ROLES.includes((role || '').toUpperCase());
+}
 
 // ================== SCHEMAS ==================
 
 const adminReviewQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(['PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FLAGGED']).optional(),
+  status: z.enum(['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FLAGGED']).optional(),
   complianceStatus: z.enum(['COMPLIANT', 'NON_COMPLIANT']).optional(),
   documentType: z.string().optional(),
   organizationId: z.string().optional(),
@@ -51,21 +61,30 @@ export async function adminReviewRoutes(app: FastifyInstance) {
   app.get('/admin/review', async (request: FastifyRequest, reply: FastifyReply) => {
     const userRole = request.headers['x-user-role'] as string;
     
-    if (userRole !== 'ADMIN') {
+    if (!isAdminRole(userRole)) {
       throw new ForbiddenError('Admin access required');
     }
 
     const query = validate(adminReviewQuerySchema, request.query);
 
     // Query documents that are ready for review
+    // Note: We don't filter by status=ACTIVE to include all documents in review
     const options: DocumentQueryOptions = {
       page: query.page,
       limit: query.limit,
-      extractionStatus: 'SUCCESS',
-      status: 'ACTIVE',
       sortBy: query.sortBy as any,
       sortOrder: query.sortOrder,
     };
+
+    // Filter by reviewStatus - 'ALL' or undefined shows all statuses
+    if (query.status && query.status !== 'ALL') {
+      options.reviewStatus = query.status as any;
+    }
+    // If no status specified, show all documents (no filter)
+    
+    if (query.complianceStatus) {
+      options.complianceStatus = query.complianceStatus as any;
+    }
 
     if (query.documentType) {
       options.type = query.documentType as any;
@@ -77,24 +96,48 @@ export async function adminReviewRoutes(app: FastifyInstance) {
 
     const result = await DocumentRepo.findAll(options);
 
-    // Enrich with compliance data would happen here in a real implementation
-    // For now, return the documents with a reviewStatus field
-    const enrichedData = result.data.map(doc => ({
-      ...doc,
-      reviewStatus: 'PENDING_REVIEW',
-      // In production, join with compliance results
+    // Transform documents to match admin portal expected format
+    const documents = result.data.map(doc => ({
+      id: doc._id?.toString() || (doc as any).id,
+      fileName: doc.fileName || doc.name,
+      originalName: doc.name,
+      documentType: doc.type,
+      organizationId: doc.organizationId?.toString(),
+      organizationName: undefined, // Would need to join with org service
+      productId: doc.productId?.toString(),
+      productName: undefined, // Would need to join with product service
+      status: doc.reviewStatus || 'PENDING_REVIEW',
+      complianceStatus: doc.complianceStatus || 'PENDING',
+      complianceScore: doc.complianceScore,
+      complianceReasons: doc.complianceReasons,
+      uploadedAt: doc.createdAt,
+      uploadedBy: doc.ownerId?.toString(),
+      reviewedAt: doc.reviewedAt,
+      reviewedBy: doc.reviewedBy,
+      reviewNote: doc.reviewNote,
+      fileSize: doc.fileSize,
+      mimeType: doc.mimeType,
+      extractedData: doc.extracted,
+      extractionStatus: doc.extractionStatus,
     }));
+
+    // Calculate stats from actual data
+    const stats = {
+      total: result.total,
+      pendingReview: result.data.filter(d => !d.reviewStatus || d.reviewStatus === 'PENDING_REVIEW').length,
+      approved: result.data.filter(d => d.reviewStatus === 'APPROVED').length,
+      rejected: result.data.filter(d => d.reviewStatus === 'REJECTED').length,
+      flagged: result.data.filter(d => d.reviewStatus === 'FLAGGED').length,
+      extractionFailed: result.data.filter(d => d.extractionStatus === 'FAILED').length,
+    };
 
     return reply.send({
       success: true,
-      data: enrichedData,
-      pagination: {
+      data: {
+        documents,
         total: result.total,
-        page: result.page,
-        limit: result.limit,
         totalPages: result.totalPages,
-        hasNextPage: result.hasNextPage,
-        hasPrevPage: result.hasPrevPage,
+        stats,
       },
     });
   });
@@ -111,7 +154,7 @@ export async function adminReviewRoutes(app: FastifyInstance) {
   app.get('/admin/review/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const userRole = request.headers['x-user-role'] as string;
     
-    if (userRole !== 'ADMIN') {
+    if (!isAdminRole(userRole)) {
       throw new ForbiddenError('Admin access required');
     }
 
@@ -164,7 +207,7 @@ export async function adminReviewRoutes(app: FastifyInstance) {
     const userRole = request.headers['x-user-role'] as string;
     const userId = request.headers['x-user-id'] as string;
     
-    if (userRole !== 'ADMIN') {
+    if (!isAdminRole(userRole)) {
       throw new ForbiddenError('Admin access required');
     }
 
@@ -173,56 +216,80 @@ export async function adminReviewRoutes(app: FastifyInstance) {
     
     const doc = await DocumentService.getById(id);
 
-    // Process decision
+    // Process decision - use dedicated fields instead of metadata
     switch (input.decision) {
       case 'APPROVE':
         await DocumentRepo.update(id, {
-          metadata: {
-            ...doc.metadata,
-            reviewStatus: 'APPROVED',
-            reviewedBy: userId,
-            reviewedAt: new Date(),
-            reviewNote: input.reviewNote,
-          },
+          reviewStatus: 'APPROVED',
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNote: input.reviewNote,
+          complianceStatus: 'COMPLIANT',
         });
         
-        // Emit event for downstream processing
-        // In production, this would update product compliance status
+        // Emit event for downstream processing - updates product compliance status
+        await emitDocumentReviewDecision({
+          documentId: doc._id.toString(),
+          productId: doc.productId?.toString(),
+          organizationId: doc.organizationId?.toString() || '',
+          documentType: doc.type,
+          decision: 'APPROVED',
+          reviewedBy: userId,
+          reviewNote: input.reviewNote,
+        });
         break;
 
       case 'REJECT':
         await DocumentRepo.update(id, {
+          reviewStatus: 'REJECTED',
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNote: input.reviewNote,
+          complianceStatus: 'NON_COMPLIANT',
           status: 'ARCHIVED', // Move to archived state
-          metadata: {
-            ...doc.metadata,
-            reviewStatus: 'REJECTED',
-            reviewedBy: userId,
-            reviewedAt: new Date(),
-            reviewNote: input.reviewNote,
-          },
         });
 
         // Emit rejection event to notify merchant
         await emitDocumentRejected({
           documentId: doc._id.toString(),
-          ownerId: doc.ownerId.toString(),
-          organizationId: doc.organizationId.toString(),
+          ownerId: doc.ownerId?.toString() || '',
+          organizationId: doc.organizationId?.toString() || '',
           productId: doc.productId?.toString(),
           fileName: doc.fileName,
           reason: 'COMPLIANCE_VIOLATION',
           details: `Admin rejected: ${input.reviewNote}`,
         });
+        
+        // Emit review decision for product compliance recalculation
+        await emitDocumentReviewDecision({
+          documentId: doc._id.toString(),
+          productId: doc.productId?.toString(),
+          organizationId: doc.organizationId?.toString() || '',
+          documentType: doc.type,
+          decision: 'REJECTED',
+          reviewedBy: userId,
+          reviewNote: input.reviewNote,
+        });
         break;
 
       case 'FLAG':
         await DocumentRepo.update(id, {
-          metadata: {
-            ...doc.metadata,
-            reviewStatus: 'FLAGGED',
-            flaggedBy: userId,
-            flaggedAt: new Date(),
-            flagReason: input.flagReason || input.reviewNote,
-          },
+          reviewStatus: 'FLAGGED',
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNote: input.flagReason || input.reviewNote,
+          complianceStatus: 'NEEDS_REVIEW',
+        });
+        
+        // Emit review decision for tracking
+        await emitDocumentReviewDecision({
+          documentId: doc._id.toString(),
+          productId: doc.productId?.toString(),
+          organizationId: doc.organizationId?.toString() || '',
+          documentType: doc.type,
+          decision: 'FLAGGED',
+          reviewedBy: userId,
+          reviewNote: input.flagReason || input.reviewNote,
         });
         break;
     }
@@ -242,7 +309,7 @@ export async function adminReviewRoutes(app: FastifyInstance) {
   app.get('/admin/stats', async (request: FastifyRequest, reply: FastifyReply) => {
     const userRole = request.headers['x-user-role'] as string;
     
-    if (userRole !== 'ADMIN') {
+    if (!isAdminRole(userRole)) {
       throw new ForbiddenError('Admin access required');
     }
 
@@ -290,7 +357,7 @@ export async function adminReviewRoutes(app: FastifyInstance) {
   app.get('/admin/rejected', async (request: FastifyRequest, reply: FastifyReply) => {
     const userRole = request.headers['x-user-role'] as string;
     
-    if (userRole !== 'ADMIN') {
+    if (!isAdminRole(userRole)) {
       throw new ForbiddenError('Admin access required');
     }
 

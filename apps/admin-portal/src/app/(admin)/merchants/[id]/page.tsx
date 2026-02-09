@@ -142,19 +142,13 @@ export default function MerchantDetailPage({ params }: { params: Promise<{ id: s
           fetchActivityLogs(),
         ]);
       } else {
-        // Use mock data for demo
-        setMerchant(getMockMerchant());
-        setProducts(getMockProducts());
-        setDocuments(getMockDocuments());
-        setActivityLogs(getMockActivityLogs());
+        // Show error state - no mock fallbacks
+        setError('Failed to load merchant data');
       }
     } catch (err) {
       console.error('Failed to fetch merchant:', err);
-      // Use mock data on error
-      setMerchant(getMockMerchant());
-      setProducts(getMockProducts());
-      setDocuments(getMockDocuments());
-      setActivityLogs(getMockActivityLogs());
+      // Show error state - no mock fallbacks
+      setError('Failed to load merchant data');
     } finally {
       setLoading(false);
     }

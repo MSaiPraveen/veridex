@@ -12,6 +12,8 @@ export interface DocumentQueryOptions {
   type?: DocumentType;
   status?: DocumentStatus;
   extractionStatus?: ExtractionStatus;
+  reviewStatus?: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  complianceStatus?: 'PENDING' | 'COMPLIANT' | 'NON_COMPLIANT' | 'NEEDS_REVIEW';
   visibility?: string;
   isExpired?: boolean;
   search?: string;
@@ -90,6 +92,35 @@ export const DocumentRepo = {
   },
 
   /**
+   * Get document counts for multiple products (for admin product list)
+   */
+  async countByProductIds(productIds: string[]): Promise<Record<string, number>> {
+    const objectIds = productIds.map(id => new mongoose.Types.ObjectId(id));
+    
+    const results = await DocumentModel.aggregate([
+      { 
+        $match: { 
+          productId: { $in: objectIds },
+          status: { $ne: 'DELETED' }
+        } 
+      },
+      { 
+        $group: { 
+          _id: '$productId', 
+          count: { $sum: 1 } 
+        } 
+      }
+    ]);
+    
+    const countMap: Record<string, number> = {};
+    for (const result of results) {
+      countMap[result._id.toString()] = result.count;
+    }
+    
+    return countMap;
+  },
+
+  /**
    * Find all documents with pagination and filtering
    */
   async findAll(options: DocumentQueryOptions = {}): Promise<PaginatedResult<IDocument>> {
@@ -100,6 +131,8 @@ export const DocumentRepo = {
       type,
       status,
       extractionStatus,
+      reviewStatus,
+      complianceStatus,
       visibility,
       isExpired,
       search,
@@ -122,6 +155,8 @@ export const DocumentRepo = {
       filter.status = { $ne: 'DELETED' };
     }
     if (extractionStatus) filter.extractionStatus = extractionStatus;
+    if (reviewStatus) filter.reviewStatus = reviewStatus;
+    if (complianceStatus) filter.complianceStatus = complianceStatus;
     if (visibility) filter.visibility = visibility;
 
     // Expired filter

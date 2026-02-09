@@ -158,11 +158,24 @@ export async function documentRoutes(app: FastifyInstance) {
 
     // ===== STEP 2: Parse and validate metadata fields =====
     const fields: Record<string, string> = {};
+    request.log.info({ fieldKeys: Object.keys(data.fields) }, 'Received form fields');
     for (const [key, value] of Object.entries(data.fields)) {
+      // Skip the file field - it's not a metadata field
+      if (key === 'file') continue;
+      
+      let extractedValue: string | undefined;
       if (value && typeof value === 'object' && 'value' in value) {
-        fields[key] = (value as { value: string }).value;
+        extractedValue = (value as { value: string }).value;
+      } else if (typeof value === 'string') {
+        extractedValue = value;
+      }
+      
+      if (extractedValue) {
+        fields[key] = extractedValue;
+        request.log.info({ key, extractedValue }, 'Parsed field');
       }
     }
+    request.log.info({ parsedFields: fields }, 'All parsed fields');
 
     // Use header organizationId if not in fields
     if (!fields.organizationId && organizationId) {
@@ -508,13 +521,28 @@ export async function documentRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: documents });
   });
 
-  // ================== HEALTH CHECK ==================
-
-  app.get('/health', async (_request, reply) => {
-    return reply.send({ 
-      status: 'ok', 
-      service: 'document-service',
-      timestamp: new Date().toISOString(),
+  /**
+   * POST /documents/counts-by-product - Get document counts for multiple products
+   * Used by admin product list to show document counts per product
+   */
+  app.post('/documents/counts-by-product', async (request: FastifyRequest, reply: FastifyReply) => {
+    const schema = z.object({
+      productIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).min(1).max(100),
     });
+    
+    const parsed = schema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ 
+        success: false, 
+        error: parsed.error.issues.map(i => i.message).join(', ') 
+      });
+    }
+    
+    const { productIds } = parsed.data;
+    
+    // Get counts per product
+    const counts = await DocumentService.getCountsByProductIds(productIds);
+    
+    return reply.send({ success: true, data: counts });
   });
 }

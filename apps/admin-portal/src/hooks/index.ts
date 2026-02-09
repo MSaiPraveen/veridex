@@ -64,3 +64,31 @@ export {
   type OrgFilters,
   type OrgDecision,
 } from './use-organizations';
+
+// Users
+export {
+  useUsers,
+  useUser,
+  useUserActions,
+  type UserStatus,
+  type UserRole,
+  type User,
+  type UserFilters,
+  type CreateUserInput,
+  type UpdateUserInput,
+} from './use-users';
+
+// Products
+export {
+  useProducts,
+  useProduct,
+  useProductActions,
+  useOrganizationProducts,
+  useComplianceQueue,
+  type ProductStatus,
+  type ComplianceStatus,
+  type ProductCategory,
+  type Product,
+  type ProductFilters,
+  type UpdateProductInput,
+} from './use-products';

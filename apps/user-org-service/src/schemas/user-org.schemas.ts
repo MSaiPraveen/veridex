@@ -99,6 +99,24 @@ export const updateMemberSchema = z.object({
   permissions: z.array(z.string()).optional(),
 });
 
+// ================== INVITATION SCHEMAS ==================
+
+export const createInvitationSchema = z.object({
+  email: z.string().email('Invalid email format').toLowerCase().trim(),
+  role: z.enum(['MEMBER', 'ADMIN', 'MANAGER']),
+  message: z.string().max(500).optional(),
+});
+
+export const invitationQuerySchema = z.object({
+  status: z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'CANCELLED']).optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
+
+export const invitationTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
 // Type exports for use in routes
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
@@ -108,3 +126,6 @@ export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
 export type OrgQueryInput = z.infer<typeof orgQuerySchema>;
 export type AddMemberInput = z.infer<typeof addMemberSchema>;
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
+export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
+export type InvitationQueryInput = z.infer<typeof invitationQuerySchema>;
+export type InvitationTokenInput = z.infer<typeof invitationTokenSchema>;

@@ -19,8 +19,10 @@ interface AdminUser {
   id: string;
   email: string;
   role: string;
+  name?: string;
   mfaVerified?: boolean;
   organizationId?: string;
+  permissions?: string[];
 }
 
 // Extend FastifyRequest to include admin user
@@ -49,7 +51,7 @@ function isFromAdminPortal(request: FastifyRequest): boolean {
  */
 function isAdminRole(role: string): boolean {
   const upperRole = role?.toUpperCase();
-  return upperRole === 'ADMIN';
+  return upperRole === 'ADMIN' || upperRole === 'SUPER_ADMIN' || upperRole === 'COMPLIANCE_REVIEWER' || upperRole === 'VIEWER';
 }
 
 /**
@@ -154,8 +156,10 @@ async function adminSecurityHook(
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.name,
       mfaVerified: user.mfaVerified,
       organizationId: user.organizationId,
+      permissions: user.permissions,
     };
   }
 

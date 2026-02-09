@@ -11,7 +11,14 @@ import {
   registerSchema,
   refreshTokenSchema,
   logoutSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  validateResetTokenSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
 } from '../schemas/auth.schemas';
+import { PasswordResetService, EmailVerificationService } from '../services/password-reset.service';
+import { revokeAllUserTokens } from '../services/token.service';
 import { ValidationError } from '../errors/auth.errors';
 import { verifyAccessToken } from '../config/jwt';
 import { z } from 'zod';
@@ -166,6 +173,124 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
   });
+
+  // ================== PASSWORD RESET ROUTES ==================
+
+  /**
+   * POST /auth/forgot-password
+   * Request a password reset email
+   */
+  app.post('/auth/forgot-password', async (req: FastifyRequest, reply: FastifyReply) => {
+    const input = validateBody(forgotPasswordSchema, req.body);
+
+    const result = await PasswordResetService.createResetToken(input.email);
+
+    // Always return success to prevent email enumeration
+    // In production, send email here if result is not null
+    if (result) {
+      console.log(`[Auth] Password reset requested for user ${result.userId}`);
+      // TODO: Send email with reset link containing result.token
+      // Example: https://yourdomain.com/reset-password?token=${result.token}
+    }
+
+    return reply.send({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.',
+    });
+  });
+
+  /**
+   * POST /auth/validate-reset-token
+   * Validate a password reset token (before showing reset form)
+   */
+  app.post('/auth/validate-reset-token', async (req: FastifyRequest, reply: FastifyReply) => {
+    const input = validateBody(validateResetTokenSchema, req.body);
+
+    const resetRecord = await PasswordResetService.validateToken(input.token);
+
+    if (!resetRecord) {
+      return reply.code(400).send({
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired reset token',
+        },
+      });
+    }
+
+    return reply.send({
+      success: true,
+      message: 'Token is valid',
+      data: { valid: true },
+    });
+  });
+
+  /**
+   * POST /auth/reset-password
+   * Reset password using a valid token
+   */
+  app.post('/auth/reset-password', async (req: FastifyRequest, reply: FastifyReply) => {
+    const input = validateBody(resetPasswordSchema, req.body);
+
+    // Reset the password
+    await PasswordResetService.resetPassword(input.token, input.password);
+
+    // Get user ID from token to revoke all sessions
+    const resetRecord = await PasswordResetService.validateToken(input.token);
+    if (resetRecord) {
+      await revokeAllUserTokens(String(resetRecord.userId));
+    }
+
+    return reply.send({
+      success: true,
+      message: 'Password has been reset successfully. Please log in with your new password.',
+    });
+  });
+
+  // ================== EMAIL VERIFICATION ROUTES ==================
+
+  /**
+   * POST /auth/verify-email
+   * Verify email address using token
+   */
+  app.post('/auth/verify-email', async (req: FastifyRequest, reply: FastifyReply) => {
+    const input = validateBody(verifyEmailSchema, req.body);
+
+    const result = await EmailVerificationService.verifyEmail(input.token);
+
+    return reply.send({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        userId: result.userId,
+        email: result.email,
+      },
+    });
+  });
+
+  /**
+   * POST /auth/resend-verification
+   * Resend email verification link
+   */
+  app.post('/auth/resend-verification', async (req: FastifyRequest, reply: FastifyReply) => {
+    const input = validateBody(resendVerificationSchema, req.body);
+
+    const result = await EmailVerificationService.resendVerification(input.email);
+
+    // Always return success to prevent email enumeration
+    if (result) {
+      console.log(`[Auth] Verification email resent for user ${result.userId}`);
+      // TODO: Send verification email with result.token
+      // Example: https://yourdomain.com/verify-email?token=${result.token}
+    }
+
+    return reply.send({
+      success: true,
+      message: 'If an unverified account with that email exists, a verification link has been sent.',
+    });
+  });
+
+  // ================== INTERNAL ENDPOINTS ==================
 
   /**
    * PATCH /auth/internal/users/:userId/organization

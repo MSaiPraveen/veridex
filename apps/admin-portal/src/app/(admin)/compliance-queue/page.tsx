@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   ShieldCheck,
   Clock,
@@ -12,7 +12,9 @@ import {
   Building2,
   Package,
   Search,
-  AlertCircle
+  AlertCircle,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { PermissionGate, useAdminPermissions } from '@/components/auth/permission-gate';
 import { AdminPermission } from '@/lib/admin-rbac';
@@ -22,6 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { SearchInput } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { EmptyState } from '@/components/ui/empty-state';
+import { adminApi } from '@/lib/admin-api';
+import { DocumentViewer } from '@/components/ui/document-viewer';
 
 // Types
 interface ComplianceItem {
@@ -29,6 +33,9 @@ interface ComplianceItem {
   entityType: 'DOCUMENT' | 'PRODUCT' | 'BATCH' | 'ORGANIZATION';
   entityName: string;
   organizationName: string;
+  organizationId?: string;
+  documentId?: string;
+  mimeType?: string;
   status: 'PENDING' | 'AUTO_FAILED' | 'NEEDS_REVIEW' | 'APPROVED' | 'REJECTED';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   failureReason?: string;
@@ -64,6 +71,50 @@ const entityIcons: Record<string, typeof FileText> = {
   ORGANIZATION: Building2,
 };
 
+// Transform API data to ComplianceItem format
+function transformToComplianceItem(doc: any): ComplianceItem {
+  // Determine status based on compliance status
+  let status: ComplianceItem['status'] = 'PENDING';
+  if (doc.complianceStatus === 'COMPLIANT') status = 'APPROVED';
+  else if (doc.complianceStatus === 'NON_COMPLIANT') status = 'AUTO_FAILED';
+  else if (doc.reviewStatus === 'APPROVED') status = 'APPROVED';
+  else if (doc.reviewStatus === 'REJECTED') status = 'REJECTED';
+  else if (doc.complianceReasons?.length > 0) status = 'NEEDS_REVIEW';
+
+  // Determine severity
+  let severity: ComplianceItem['severity'] = 'MEDIUM';
+  if (doc.complianceScore !== undefined) {
+    if (doc.complianceScore < 50) severity = 'CRITICAL';
+    else if (doc.complianceScore < 70) severity = 'HIGH';
+    else if (doc.complianceScore < 90) severity = 'MEDIUM';
+    else severity = 'LOW';
+  } else if (doc.complianceStatus === 'NON_COMPLIANT') {
+    severity = 'HIGH';
+  }
+
+  // Get first failure reason as rule
+  const failureReason = doc.complianceReasons?.[0] || doc.failureReason;
+  const ruleId = doc.ruleViolations?.[0]?.ruleId;
+  const ruleName = doc.ruleViolations?.[0]?.ruleName;
+
+  return {
+    id: doc.id || doc._id,
+    documentId: doc.id || doc._id,
+    entityType: 'DOCUMENT',
+    entityName: doc.originalName || doc.fileName || 'Document',
+    organizationName: doc.organizationName || 'Unknown Organization',
+    organizationId: doc.organizationId,
+    mimeType: doc.mimeType,
+    status,
+    severity,
+    failureReason,
+    ruleId,
+    ruleName,
+    createdAt: doc.uploadedAt || doc.createdAt,
+    dueDate: doc.dueDate,
+  };
+}
+
 export default function ComplianceQueuePage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('ALL');
@@ -73,67 +124,62 @@ export default function ComplianceQueuePage() {
   const [decisionType, setDecisionType] = useState<'approve' | 'reject' | null>(null);
 
   const permissions = useAdminPermissions();
+  
+  // Real data state
+  const [complianceQueue, setComplianceQueue] = useState<ComplianceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    autoFailed: 0,
+    needsReview: 0,
+    critical: 0,
+  });
+  
+  // Document viewer state
+  const [viewingDocument, setViewingDocument] = useState<ComplianceItem | null>(null);
 
-  // Mock data
-  const mockQueue: ComplianceItem[] = [
-    {
-      id: '1',
-      entityType: 'DOCUMENT',
-      entityName: 'Lab Report - Batch #2024-001',
-      organizationName: 'GreenLeaf Labs',
-      status: 'NEEDS_REVIEW',
-      severity: 'HIGH',
-      failureReason: 'THC content exceeds state limit (0.5% detected, 0.3% allowed)',
-      ruleId: 'THC-CA-001',
-      ruleName: 'California THC Limit',
-      createdAt: '2025-12-30T14:30:00Z',
-      dueDate: '2026-01-02T14:30:00Z',
-    },
-    {
-      id: '2',
-      entityType: 'DOCUMENT',
-      entityName: 'Business License - GreenLeaf Labs',
-      organizationName: 'GreenLeaf Labs',
-      status: 'PENDING',
-      severity: 'MEDIUM',
-      failureReason: 'License expiration date not detected',
-      createdAt: '2025-12-31T10:00:00Z',
-    },
-    {
-      id: '3',
-      entityType: 'PRODUCT',
-      entityName: 'Full Spectrum CBD Oil 1000mg',
-      organizationName: 'Pure Hemp Co',
-      status: 'AUTO_FAILED',
-      severity: 'CRITICAL',
-      failureReason: 'Missing required lab certification',
-      ruleId: 'LAB-REQ-001',
-      ruleName: 'Lab Certification Required',
-      createdAt: '2025-12-29T08:15:00Z',
-    },
-    {
-      id: '4',
-      entityType: 'BATCH',
-      entityName: 'Batch #2024-Q4-142',
-      organizationName: 'Herbal Solutions',
-      status: 'NEEDS_REVIEW',
-      severity: 'LOW',
-      failureReason: 'Minor labeling discrepancy',
-      createdAt: '2025-12-28T16:45:00Z',
-    },
-    {
-      id: '5',
-      entityType: 'ORGANIZATION',
-      entityName: 'Natural Extracts LLC',
-      organizationName: 'Natural Extracts LLC',
-      status: 'PENDING',
-      severity: 'MEDIUM',
-      failureReason: 'Pending document verification',
-      createdAt: '2025-12-27T11:20:00Z',
-    },
-  ];
+  // Fetch compliance queue from API
+  const fetchComplianceQueue = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Use admin review endpoint which has documents with compliance data
+      const response = await adminApi.get<any>('/admin/review?limit=50');
+      
+      if (response.success && response.data) {
+        const documents = response.data.documents || response.data.data || [];
+        const transformedDocs = documents.map(transformToComplianceItem);
+        setComplianceQueue(transformedDocs);
+        
+        // Calculate stats
+        setStats({
+          total: transformedDocs.length,
+          pending: transformedDocs.filter((i: ComplianceItem) => i.status === 'PENDING').length,
+          autoFailed: transformedDocs.filter((i: ComplianceItem) => i.status === 'AUTO_FAILED').length,
+          needsReview: transformedDocs.filter((i: ComplianceItem) => i.status === 'NEEDS_REVIEW').length,
+          critical: transformedDocs.filter((i: ComplianceItem) => i.severity === 'CRITICAL').length,
+        });
+      } else {
+        setError('Failed to load compliance queue');
+        setComplianceQueue([]);
+      }
+    } catch (err) {
+      console.error('Error fetching compliance queue:', err);
+      setError('Failed to load compliance queue');
+      setComplianceQueue([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const filteredQueue = mockQueue.filter(item => {
+  useEffect(() => {
+    fetchComplianceQueue();
+  }, [fetchComplianceQueue]);
+
+  const filteredQueue = complianceQueue.filter(item => {
     if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
     if (severityFilter !== 'ALL' && item.severity !== severityFilter) return false;
     if (searchQuery && !item.entityName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -147,24 +193,41 @@ export default function ComplianceQueuePage() {
   };
 
   const executeDecision = async () => {
-    // API call would go here
-    console.log(`${decisionType} item:`, selectedItem?.id);
-    setShowDecisionModal(false);
-    setSelectedItem(null);
-    setDecisionType(null);
-  };
-
-  // Queue statistics
-  const stats = {
-    total: mockQueue.length,
-    pending: mockQueue.filter(i => i.status === 'PENDING').length,
-    autoFailed: mockQueue.filter(i => i.status === 'AUTO_FAILED').length,
-    needsReview: mockQueue.filter(i => i.status === 'NEEDS_REVIEW').length,
-    critical: mockQueue.filter(i => i.severity === 'CRITICAL').length,
+    if (!selectedItem) return;
+    
+    try {
+      const decision = decisionType === 'approve' ? 'APPROVE' : 'REJECT';
+      await adminApi.post(`/admin/review/${selectedItem.documentId}/decision`, {
+        decision,
+        reviewNote: `${decision === 'APPROVE' ? 'Approved' : 'Rejected'} via compliance queue`,
+      });
+      
+      // Refresh the queue
+      await fetchComplianceQueue();
+      setShowDecisionModal(false);
+      setSelectedItem(null);
+      setDecisionType(null);
+    } catch (err) {
+      console.error('Failed to submit decision:', err);
+      alert('Failed to submit decision. Please try again.');
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Document Viewer Modal */}
+      {viewingDocument && (
+        <DocumentViewer
+          document={{
+            id: viewingDocument.documentId || viewingDocument.id,
+            name: viewingDocument.entityName,
+            type: viewingDocument.entityType,
+            mimeType: viewingDocument.mimeType,
+          }}
+          onClose={() => setViewingDocument(null)}
+        />
+      )}
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -174,6 +237,10 @@ export default function ComplianceQueuePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={fetchComplianceQueue} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh
+          </Button>
           <Badge variant="warning" size="md">{stats.total} items</Badge>
           {stats.critical > 0 && (
             <Badge variant="danger" size="md">{stats.critical} critical</Badge>
@@ -247,7 +314,36 @@ export default function ComplianceQueuePage() {
 
       {/* Queue Items */}
       <div className="space-y-4">
-        {filteredQueue.map((item) => {
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+            <span className="ml-2 text-slate-600 dark:text-slate-400">Loading compliance queue...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-500 font-medium">{error}</p>
+            <Button onClick={fetchComplianceQueue} className="mt-4">
+              Try Again
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filteredQueue.length === 0 && (
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium">All clear!</p>
+            <p className="text-sm text-slate-500 mt-1">No compliance items pending</p>
+          </div>
+        )}
+
+        {/* Compliance Items */}
+        {!loading && !error && filteredQueue.map((item) => {
           const StatusIcon = statusConfig[item.status].icon;
           const EntityIcon = entityIcons[item.entityType];
 
@@ -323,7 +419,11 @@ export default function ComplianceQueuePage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Button variant="secondary" size="sm">
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => setViewingDocument(item)}
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>

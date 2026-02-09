@@ -83,7 +83,7 @@ export interface DashboardData {
   timestamp: string;
 }
 
-// API base URL for server-side fetching
+// API base URL for server-side fetching - connects to API Gateway (port 3002 in Docker)
 const API_BASE_URL = process.env.ADMIN_API_URL || 'http://localhost:3002';
 
 /**
@@ -96,6 +96,7 @@ async function getAuthToken(): Promise<string | undefined> {
 
 /**
  * Fetch real data from the API with authentication
+ * Silently handles 401s to avoid console noise when token is expired/invalid
  */
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
   try {
@@ -111,7 +112,10 @@ async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
       cache: 'no-store', // Always fetch fresh data
     });
     if (!res.ok) {
-      console.error(`API ${endpoint} returned ${res.status}`);
+      // Don't log 401s - they're expected when token is expired/invalid
+      if (res.status !== 401) {
+        console.error(`API ${endpoint} returned ${res.status}`);
+      }
       return null;
     }
     const json = await res.json();
@@ -127,13 +131,23 @@ async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
  * Fetches REAL data from API - no mock fallbacks
  */
 export const getDashboardData = cache(async (): Promise<DashboardData> => {
-  // Fetch real stats from API in parallel
-  const [usersData, orgsData, productsData, complianceData] = await Promise.all([
-    fetchFromApi<{ total: number }>('/admin/users?limit=1'),
-    fetchFromApi<{ total: number }>('/admin/organizations?limit=1'),
-    fetchFromApi<{ total: number }>('/products?limit=1'),
-    fetchFromApi<{ pending: number }>('/admin/compliance/stats'),
-  ]);
+  // Check for auth token first - skip API calls if not authenticated
+  const token = await getAuthToken();
+  
+  let usersData: { total: number } | null = null;
+  let orgsData: { total: number } | null = null;
+  let productsData: { total: number } | null = null;
+  let complianceData: { pending: number } | null = null;
+  
+  // Only fetch if authenticated to avoid 401 errors
+  if (token) {
+    [usersData, orgsData, productsData, complianceData] = await Promise.all([
+      fetchFromApi<{ total: number }>('/admin/users?limit=1'),
+      fetchFromApi<{ total: number }>('/admin/organizations?limit=1'),
+      fetchFromApi<{ total: number }>('/products?limit=1'),
+      fetchFromApi<{ pending: number }>('/admin/compliance/stats'),
+    ]);
+  }
 
   const stats: StatCard[] = [
     { 

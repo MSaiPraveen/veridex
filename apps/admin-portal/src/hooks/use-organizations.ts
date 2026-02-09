@@ -23,6 +23,7 @@ export interface Organization {
   status: OrgStatus;
   legalName?: string;
   taxId?: string;
+  ein?: string;
   email: string;
   phone?: string;
   address?: {
@@ -30,15 +31,20 @@ export interface Organization {
     city?: string;
     state?: string;
     postalCode?: string;
+    zip?: string;
     country?: string;
   };
   website?: string;
   licenseNumber?: string;
   licenseExpiry?: string;
+  jurisdiction?: string;
+  description?: string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
   complianceScore?: number;
   totalProducts?: number;
   totalDocuments?: number;
   pendingDocuments?: number;
+  lastReviewAt?: string;
   createdAt: string;
   updatedAt: string;
   approvedAt?: string;

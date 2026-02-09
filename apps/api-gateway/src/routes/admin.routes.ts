@@ -102,13 +102,194 @@ export async function adminRoutes(app: FastifyInstance) {
   // Admin User Management Routes
   // ============================================
 
-  // List users
+  // Helper to get admin headers for downstream service calls
+  function getAdminHeaders(request: FastifyRequest): Record<string, string> {
+    const user = request.user as any;
+    return {
+      'Content-Type': 'application/json',
+      'x-request-id': request.id,
+      'x-user-id': user?.id || 'admin',
+      'x-user-role': 'ADMIN',
+      'x-user-email': user?.email || '',
+    };
+  }
+
+  // List users with enriched counts (products, documents)
   app.get('/admin/users', {
     preHandler: requireRole([Role.ADMIN]),
     preValidation: validateRequest({ query: userQuerySchema }),
   }, async (request, reply) => {
     const qs = buildQueryString(request.query as Record<string, unknown>);
-    return proxyToService(request, reply, services.userOrg, 'GET', `/users${qs}`);
+    const headers = getAdminHeaders(request);
+    
+    // Get users from user-org service
+    const userRes = await fetch(`${services.userOrg}/users${qs}`, {
+      method: 'GET',
+      headers,
+    });
+    
+    if (!userRes.ok) {
+      const error = await userRes.json().catch(() => ({}));
+      return reply.status(userRes.status).send(error);
+    }
+    
+    const userData = await userRes.json();
+    const users = userData.data || [];
+    
+    // Fetch all organizations once for email domain matching
+    let allOrganizations: any[] = [];
+    try {
+      const orgsRes = await fetch(`${services.userOrg}/organizations?limit=100`, {
+        method: 'GET',
+        headers,
+      });
+      if (orgsRes.ok) {
+        const orgsData = await orgsRes.json();
+        allOrganizations = orgsData.data || [];
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
+    // Helper to find organization for a user by email domain matching
+    const findOrgByEmailDomain = (email: string): any | null => {
+      if (!email || !allOrganizations.length) return null;
+      
+      const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+      if (!emailDomain || emailDomain === 'example.com' || emailDomain === 'gmail.com') {
+        return null;
+      }
+      
+      // Try to match email domain to org name
+      // e.g., "owner@greenleaflabs.com" -> "GreenLeaf Labs"
+      // e.g., "owner@herbalremedies.inc" -> "Herbal Remedies Inc"
+      const domainBase = emailDomain.split('.')[0]; // "greenleaflabs" or "herbalremedies"
+      
+      for (const org of allOrganizations) {
+        const orgNameNormalized = org.name.toLowerCase().replace(/\s+/g, '');
+        if (orgNameNormalized.includes(domainBase) || domainBase.includes(orgNameNormalized.replace(/inc|co|corp|labs|llc/g, ''))) {
+          return org;
+        }
+      }
+      
+      return null;
+    };
+    
+    // Helper to find organization by ID
+    const findOrgById = (orgId: string): any | null => {
+      if (!orgId || !allOrganizations.length) return null;
+      return allOrganizations.find((org: any) => org._id === orgId || org.id === orgId) || null;
+    };
+    
+    // Enrich users with product and document counts
+    const enrichedUsers = await Promise.all(users.map(async (user: any) => {
+      const userId = user._id || user.id;
+      
+      let productsCount = 0;
+      let documentsCount = 0;
+      let orgId = user.organizationId;
+      let organizationName = user.organizationName;
+      
+      // If user has organizationId but no name, look up the org name
+      if (orgId && !organizationName) {
+        const org = findOrgById(orgId);
+        if (org) {
+          organizationName = org.name;
+        }
+      }
+      
+      // If user doesn't have organizationId, look up their memberships
+      if (!orgId) {
+        try {
+          const membershipRes = await fetch(
+            `${services.userOrg}/users/${userId}/memberships`,
+            { method: 'GET', headers }
+          );
+          if (membershipRes.ok) {
+            const membershipData = await membershipRes.json();
+            const memberships = membershipData.data || [];
+            if (memberships.length > 0) {
+              // Use the first (primary) organization
+              orgId = memberships[0].organizationId;
+              organizationName = memberships[0].organizationName;
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      // If still no org, try to find org by email domain matching
+      if (!orgId && user.email) {
+        const matchedOrg = findOrgByEmailDomain(user.email);
+        if (matchedOrg) {
+          orgId = matchedOrg._id;
+          organizationName = matchedOrg.name;
+        }
+      }
+      
+      try {
+        // Get product count for this organization
+        // Products use merchantId which is actually organizationId
+        if (orgId) {
+          const productCountRes = await fetch(
+            `${services.product}/products?scope=all&merchantId=${orgId}&limit=1`,
+            { method: 'GET', headers }
+          );
+          if (productCountRes.ok) {
+            const productData = await productCountRes.json();
+            productsCount = productData.total || 0;
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      try {
+        // Get document count - try by organizationId first, then by ownerId (which is also org ID for our data)
+        if (orgId) {
+          let docCountRes = await fetch(
+            `${services.document}/documents?organizationId=${orgId}&limit=1`,
+            { method: 'GET', headers }
+          );
+          if (docCountRes.ok) {
+            const docData = await docCountRes.json();
+            documentsCount = docData.total || 0;
+          }
+          
+          // Also check documents by ownerId (some docs use ownerId = orgId)
+          if (documentsCount === 0) {
+            docCountRes = await fetch(
+              `${services.document}/documents?ownerId=${orgId}&limit=1`,
+              { method: 'GET', headers }
+            );
+            if (docCountRes.ok) {
+              const docData = await docCountRes.json();
+              documentsCount = docData.total || 0;
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+      
+      return {
+        ...user,
+        organizationId: orgId,
+        organizationName,
+        productsCount,
+        documentsCount,
+        complianceScore: user.complianceScore || (productsCount > 0 ? 85 : 0), // Placeholder
+      };
+    }));
+    
+    return reply.send({
+      success: true,
+      data: enrichedUsers,
+      total: userData.total,
+      totalPages: userData.totalPages,
+      page: userData.page,
+    });
   });
 
   // Get user by ID

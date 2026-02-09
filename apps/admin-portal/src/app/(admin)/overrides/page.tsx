@@ -85,111 +85,13 @@ const OVERRIDE_CATEGORIES = [
   { value: 'TEMPORARY', label: 'Temporary', description: 'Short-term exception with expiry' },
 ];
 
-// Mock data
-const mockOverrides: Override[] = [
-  {
-    id: 'ovr-001',
-    type: 'DOCUMENT',
-    entityId: 'doc-123',
-    entityName: 'Lab Report - Batch #2024-001',
-    organizationId: 'org-001',
-    organizationName: 'GreenLeaf Labs',
-    originalDecision: 'REJECTED',
-    overrideDecision: 'APPROVED',
-    category: 'MEASUREMENT_ERROR',
-    justification: 'THC level is marginally over limit but within measurement error tolerance. Lab confirmed retesting shows 0.28%. Re-test documentation attached.',
-    requiredApproval: true,
-    approvalStatus: 'APPROVED',
-    supervisorId: 'admin-001',
-    supervisorName: 'John Admin',
-    supervisorDecision: 'Approved - retest confirms compliance. Valid measurement error case.',
-    requestedBy: 'sarah.reviewer@veridex.io',
-    requestedByEmail: 'sarah.reviewer@veridex.io',
-    requestedAt: '2026-01-02T10:00:00Z',
-    approvedAt: '2026-01-02T10:45:00Z',
-    originalFailures: ['THC content exceeds 0.3% limit (0.32%)'],
-    impactedRules: ['THC-CA-001'],
-    auditId: 'audit-001',
-  },
-  {
-    id: 'ovr-002',
-    type: 'COMPLIANCE',
-    entityId: 'prod-456',
-    entityName: 'Full Spectrum CBD Oil 1000mg',
-    organizationId: 'org-001',
-    organizationName: 'GreenLeaf Labs',
-    originalDecision: 'NON_COMPLIANT',
-    overrideDecision: 'COMPLIANT',
-    category: 'POLICY_EXCEPTION',
-    justification: 'Product was manufactured before new labeling requirements took effect. Merchant has 30 days to update labels on existing inventory per transition policy.',
-    requiredApproval: false,
-    approvalStatus: 'NOT_REQUIRED',
-    requestedBy: 'mike.reviewer@veridex.io',
-    requestedByEmail: 'mike.reviewer@veridex.io',
-    requestedAt: '2026-01-01T14:30:00Z',
-    expiresAt: '2026-02-01T00:00:00Z',
-    originalFailures: ['Missing QR code on label', 'Batch number not visible'],
-    impactedRules: ['LAB-OR-001'],
-  },
-  {
-    id: 'ovr-003',
-    type: 'DOCUMENT',
-    entityId: 'doc-789',
-    entityName: 'Business License - Pure Wellness',
-    organizationId: 'org-002',
-    organizationName: 'Pure Wellness Co',
-    originalDecision: 'REJECTED',
-    overrideDecision: 'APPROVED',
-    category: 'FALSE_POSITIVE',
-    justification: 'OCR misread license expiration date due to poor scan quality. Manual verification confirms license valid until 2027.',
-    requiredApproval: true,
-    approvalStatus: 'PENDING',
-    requestedBy: 'emily.reviewer@veridex.io',
-    requestedByEmail: 'emily.reviewer@veridex.io',
-    requestedAt: '2026-01-03T09:15:00Z',
-    originalFailures: ['License appears expired (OCR read: 2024-12-31)'],
-    impactedRules: ['LIC-CO-001'],
-  },
-  {
-    id: 'ovr-004',
-    type: 'PRODUCT',
-    entityId: 'prod-999',
-    entityName: 'Hemp Tincture 500mg',
-    organizationId: 'org-003',
-    organizationName: 'Herbal Remedies Inc',
-    originalDecision: 'REJECTED',
-    overrideDecision: 'APPROVED',
-    category: 'EMERGENCY',
-    justification: 'Critical medical supply needed for hospice patients. Expedited approval requested. All other compliance checks passed. Missing only pesticide panel which is delayed from lab.',
-    requiredApproval: true,
-    approvalStatus: 'DENIED',
-    supervisorId: 'admin-001',
-    supervisorName: 'John Admin',
-    supervisorDecision: 'Denied - Cannot approve without pesticide panel. Safety non-negotiable.',
-    requestedBy: 'sarah.reviewer@veridex.io',
-    requestedByEmail: 'sarah.reviewer@veridex.io',
-    requestedAt: '2025-12-28T16:00:00Z',
-    originalFailures: ['Missing pesticide panel documentation'],
-    impactedRules: ['TEST-NY-001'],
-    auditId: 'audit-005',
-  },
-];
+// Real data - no mock data
+const overridesData: Override[] = [];
 
-const mockPendingApprovals: PendingApproval[] = [
-  {
-    id: 'pnd-001',
-    overrideId: 'ovr-003',
-    entityName: 'Business License - Pure Wellness',
-    requestedBy: 'emily.reviewer@veridex.io',
-    category: 'FALSE_POSITIVE',
-    justification: 'OCR misread license expiration date due to poor scan quality.',
-    requestedAt: '2026-01-03T09:15:00Z',
-    riskLevel: 'MEDIUM',
-  },
-];
+const pendingApprovalsData: PendingApproval[] = [];
 
 export default function OverridesPage() {
-  const [overrides, setOverrides] = useState<Override[]>(mockOverrides);
+  const [overrides, setOverrides] = useState<Override[]>(overridesData);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -336,19 +238,19 @@ export default function OverridesPage() {
       </div>
 
       {/* Pending Approvals Alert */}
-      {mockPendingApprovals.length > 0 && (
+      {pendingApprovalsData.length > 0 && (
         <PermissionGate permissions={[AdminPermission.OVERRIDE_APPROVE]}>
           <Card className="mb-6 border-amber-200 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5">
             <CardHeader className="border-b border-amber-200 dark:border-amber-500/30">
               <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-300">
                 <UserCheck className="h-5 w-5" />
                 Pending Your Approval
-                <Badge variant="warning">{mockPendingApprovals.length}</Badge>
+                <Badge variant="warning">{pendingApprovalsData.length}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="py-4">
               <div className="space-y-3">
-                {mockPendingApprovals.map((pending) => (
+                {pendingApprovalsData.map((pending) => (
                   <div 
                     key={pending.id}
                     className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700/50"

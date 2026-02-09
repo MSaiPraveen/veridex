@@ -105,6 +105,13 @@ export const ProductService = {
   },
 
   /**
+   * Get multiple products by IDs (for batch lookup)
+   */
+  async getByIds(ids: string[]): Promise<ProductResult[]> {
+    return ProductRepo.findByIds(ids);
+  },
+
+  /**
    * Get all products with pagination
    */
   async getAll(options: ProductQueryOptions = {}) {
@@ -123,6 +130,13 @@ export const ProductService = {
    */
   async getByOrganization(organizationId: string) {
     return ProductRepo.findByOrganization(organizationId);
+  },
+
+  /**
+   * Find product by SKU within an organization
+   */
+  async findBySku(sku: string, organizationId: string): Promise<LeanProduct | null> {
+    return ProductRepo.findBySkuAndOrg(sku, organizationId);
   },
 
   /**

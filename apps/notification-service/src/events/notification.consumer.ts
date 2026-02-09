@@ -1,4 +1,5 @@
-import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
+import { Kafka } from 'kafkajs';
+import { RetryConsumer, InMemoryIdempotencyStore } from '@veridex/shared';
 import { env } from '../config/env';
 import { notifyUser, SendNotificationInput } from '../services/notification.service';
 
@@ -7,16 +8,18 @@ const kafka = new Kafka({
   brokers: [env.KAFKA_BROKER],
 });
 
-let consumer: Consumer | null = null;
+let retryConsumer: RetryConsumer | null = null;
 
+/**
+ * Notification Consumer
+ * 
+ * Uses RetryConsumer for:
+ * - Automatic retries with exponential backoff
+ * - Dead-letter queue for failed notifications
+ * - Idempotency to prevent duplicate notifications
+ */
 export async function startNotificationConsumer(): Promise<void> {
-  consumer = kafka.consumer({
-    groupId: 'notification-service',
-  });
-
-  await consumer.connect();
-
-  // Subscribe to various topics including document rejection events
+  // Topics to subscribe to
   const topics = [
     'compliance.result',
     'compliance.alert',
@@ -31,67 +34,75 @@ export async function startNotificationConsumer(): Promise<void> {
     'auth.password-reset',
   ];
 
-  for (const topic of topics) {
-    try {
-      await consumer.subscribe({ topic, fromBeginning: false });
-      console.log(`Subscribed to topic: ${topic}`);
-    } catch (error) {
-      console.warn(`Failed to subscribe to topic ${topic}:`, error);
-    }
-  }
-
-  await consumer.run({
-    eachMessage: async (payload: EachMessagePayload) => {
-      const { topic, message } = payload;
-
+  retryConsumer = new RetryConsumer({
+    kafka,
+    groupId: 'notification-service',
+    topics,
+    
+    // Retry configuration - be generous for notification delivery
+    retryConfig: {
+      maxRetries: 5,
+      initialDelayMs: 2000,
+      maxDelayMs: 120000,
+      backoffMultiplier: 2,
+    },
+    
+    // Dead-letter queue topic
+    dlqTopic: 'notifications.dlq',
+    
+    // Idempotency store
+    idempotencyStore: new InMemoryIdempotencyStore(),
+    
+    // Message handler - receives EachMessagePayload from kafkajs
+    handler: async ({ topic, partition, message }) => {
       if (!message.value) return;
 
-      try {
-        const rawData = JSON.parse(message.value.toString());
-        // Handle both wrapped and unwrapped event formats
-        const data = rawData.data || rawData;
+      const rawData = JSON.parse(message.value.toString());
+      // Handle both wrapped and unwrapped event formats
+      const data = rawData.data || rawData;
+      
+      // Use topic from the payload
+      const messageTopic = topic;
 
-        switch (topic) {
-          case 'compliance.result':
-            await handleComplianceResult(data);
-            break;
-          case 'compliance.alert':
-            await handleComplianceAlert(data);
-            break;
-          case 'compliance.auto.rejected':
-            await handleComplianceAutoRejected(data);
-            break;
-          case 'document.processed':
-            await handleDocumentProcessed(data);
-            break;
-          case 'document.rejected':
-            await handleDocumentRejected(data);
-            break;
-          case 'document.admin.review.required':
-            await handleAdminReviewRequired(data);
-            break;
-          case 'product.created':
-            await handleProductCreated(data);
-            break;
-          case 'product.updated':
-            await handleProductUpdated(data);
-            break;
-          case 'user.created':
-            await handleUserCreated(data);
-            break;
-          case 'auth.password-reset':
-            await handlePasswordReset(data);
-            break;
-          default:
-            console.log(`Unhandled topic: ${topic}`);
-        }
-      } catch (error) {
-        console.error(`Error processing message from ${topic}:`, error);
+      switch (messageTopic) {
+        case 'compliance.result':
+          await handleComplianceResult(data);
+          break;
+        case 'compliance.alert':
+          await handleComplianceAlert(data);
+          break;
+        case 'compliance.auto.rejected':
+          await handleComplianceAutoRejected(data);
+          break;
+        case 'document.processed':
+          await handleDocumentProcessed(data);
+          break;
+        case 'document.rejected':
+          await handleDocumentRejected(data);
+          break;
+        case 'document.admin.review.required':
+          await handleAdminReviewRequired(data);
+          break;
+        case 'product.created':
+          await handleProductCreated(data);
+          break;
+        case 'product.updated':
+          await handleProductUpdated(data);
+          break;
+        case 'user.created':
+          await handleUserCreated(data);
+          break;
+        case 'auth.password-reset':
+          await handlePasswordReset(data);
+          break;
+        default:
+          console.log(`Unhandled topic: ${messageTopic}`);
       }
     },
   });
 
-  console.log('Notification consumer started successfully');
+  await retryConsumer.start();
+  console.log('Notification consumer started with retry support');
 }
 
 // =====================
@@ -452,8 +463,8 @@ async function handlePasswordReset(event: PasswordResetEvent): Promise<void> {
 }
 
 export async function stopNotificationConsumer(): Promise<void> {
-  if (consumer) {
-    await consumer.disconnect();
-    consumer = null;
+  if (retryConsumer) {
+    await retryConsumer.stop();
+    retryConsumer = null;
   }
 }

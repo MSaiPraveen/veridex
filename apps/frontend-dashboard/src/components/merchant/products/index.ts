@@ -8,6 +8,7 @@ export { OrgProductsFilters, GlobalProductsFilters } from './ProductsFilters';
 export { BulkActionsBar, BulkImportSummary } from './BulkActionsBar';
 export { ImportProductModal } from './ImportProductModal';
 export { ProductAuditPanel } from './ProductAuditPanel';
+export { ProductDocumentsPanel } from './ProductDocumentsPanel';
 export { ProductsEmptyState } from './EmptyStates';
 export {
   OriginBadge,

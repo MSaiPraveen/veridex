@@ -46,7 +46,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const response = await adminApi.get<{ user: AdminUser }>('/auth/me');
+      const response = await adminApi.get<{ user: AdminUser }>('/admin/auth/me');
       const userData = response.data?.user;
       
       // CRITICAL: Verify this is actually an admin user
@@ -106,9 +106,17 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await adminApi.post<{
-      user: AdminUser;
-      tokens: { accessToken: string; refreshToken: string };
-    }>('/auth/login', { email, password });
+      success: boolean;
+      requiresMfa?: boolean;
+      mfaSessionToken?: string;
+      user?: AdminUser;
+      tokens?: { accessToken: string; refreshToken: string };
+    }>('/admin/auth/login', { email, password });
+
+    // Handle MFA requirement (for future implementation)
+    if (response.data?.requiresMfa) {
+      throw new Error('MFA verification required. Please contact administrator.');
+    }
 
     const userData = response.data?.user;
     const tokens = response.data?.tokens;
@@ -129,7 +137,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await adminApi.post('/auth/logout', { allDevices: false });
+      await adminApi.post('/admin/auth/logout', { allDevices: false });
     } catch {
       // Ignore errors - always clear local state
     } finally {

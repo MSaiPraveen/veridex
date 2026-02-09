@@ -76,6 +76,155 @@ function buildQueryString(query: Record<string, unknown>): string {
 
 export async function organizationRoutes(app: FastifyInstance) {
   // ============================================
+  // Merchant Organization Management
+  // ============================================
+
+  /**
+   * POST /organizations
+   * Create a new organization (for merchants)
+   */
+  app.post('/organizations', {
+    preHandler: requireRole([Role.MERCHANT, Role.ADMIN]),
+    preValidation: validateRequest({ body: createOrganizationBodySchema }),
+  }, async (request, reply) => {
+    return proxyToUserOrg(request, reply, 'POST', '/organizations');
+  });
+
+  /**
+   * PATCH /organizations/:id
+   * Update current user's organization
+   */
+  app.patch('/organizations/:id', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({
+      params: idParamsSchema,
+      body: updateOrganizationBodySchema,
+    }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToUserOrg(request, reply, 'PATCH', `/organizations/${params.id}`);
+  });
+
+  /**
+   * GET /organizations/:id/members
+   * Get organization members
+   */
+  app.get('/organizations/:id/members', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({ params: idParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToUserOrg(request, reply, 'GET', `/organizations/${params.id}/members`);
+  });
+
+  /**
+   * POST /organizations/:id/invitations
+   * Invite a user to join organization
+   */
+  app.post('/organizations/:id/invitations', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({ params: idParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToUserOrg(request, reply, 'POST', `/organizations/${params.id}/invitations`);
+  });
+
+  /**
+   * GET /organizations/:id/invitations
+   * Get pending invitations for organization
+   */
+  app.get('/organizations/:id/invitations', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({ params: idParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const qs = buildQueryString(request.query as Record<string, unknown>);
+    return proxyToUserOrg(request, reply, 'GET', `/organizations/${params.id}/invitations${qs}`);
+  });
+
+  /**
+   * DELETE /invitations/:id
+   * Cancel an invitation
+   */
+  app.delete('/invitations/:id', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({ params: idParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToUserOrg(request, reply, 'DELETE', `/invitations/${params.id}`);
+  });
+
+  /**
+   * POST /invitations/:id/resend
+   * Resend an invitation
+   */
+  app.post('/invitations/:id/resend', {
+    preHandler: requireAuth(),
+    preValidation: validateRequest({ params: idParamsSchema }),
+  }, async (request, reply) => {
+    const params = request.params as { id: string };
+    return proxyToUserOrg(request, reply, 'POST', `/invitations/${params.id}/resend`);
+  });
+
+  /**
+   * GET /invitations/:token
+   * Get invitation details by token (public)
+   */
+  app.get('/invitations/:token', async (request, reply) => {
+    const params = request.params as { token: string };
+    return proxyToUserOrg(request, reply, 'GET', `/invitations/${params.token}`);
+  });
+
+  /**
+   * POST /invitations/:token/accept
+   * Accept an invitation
+   */
+  app.post('/invitations/:token/accept', {
+    preHandler: requireAuth(),
+  }, async (request, reply) => {
+    const params = request.params as { token: string };
+    return proxyToUserOrg(request, reply, 'POST', `/invitations/${params.token}/accept`);
+  });
+
+  /**
+   * POST /invitations/:token/decline
+   * Decline an invitation
+   */
+  app.post('/invitations/:token/decline', {
+    preHandler: requireAuth(),
+  }, async (request, reply) => {
+    const params = request.params as { token: string };
+    return proxyToUserOrg(request, reply, 'POST', `/invitations/${params.token}/decline`);
+  });
+
+  /**
+   * GET /my-invitations
+   * Get current user's pending invitations
+   */
+  app.get('/my-invitations', {
+    preHandler: requireAuth(),
+  }, async (request, reply) => {
+    return proxyToUserOrg(request, reply, 'GET', '/my-invitations');
+  });
+
+  /**
+   * GET /my-organization
+   * Get current user's organization
+   */
+  app.get('/my-organization', {
+    preHandler: requireAuth(),
+  }, async (request, reply) => {
+    const user = (request as any).user;
+    if (!user?.orgId) {
+      return reply.status(404).send({ 
+        success: false, 
+        error: 'No organization found for current user' 
+      });
+    }
+    return proxyToUserOrg(request, reply, 'GET', `/organizations/${user.orgId}`);
+  });
+
+  // ============================================
   // User Organization Routes (Authenticated users)
   // ============================================
 

@@ -5,7 +5,8 @@ import { Icons } from '@/components/ui/icons';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { useProduct, useDocuments } from '@/lib/hooks';
+import { useProduct, useProductDocuments } from '@/lib/hooks';
+import { DocumentList } from '@/components/ui/document-viewer';
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -16,9 +17,8 @@ export default function ProductDetailPage() {
 
     const { data: productResponse, isLoading: productLoading, error: productError } = useProduct(id || null);
 
-    // Documents query
-    const docQuery = id ? { productId: id } : undefined;
-    const { data: documentsResponse } = useDocuments(docQuery);
+    // Get documents specifically for this product
+    const { data: documentsResponse } = useProductDocuments(id || null);
 
     const product = productResponse?.data;
     const documents = documentsResponse?.data || [];
@@ -158,39 +158,18 @@ export default function ProductDetailPage() {
                             </div>
 
                             <div className="space-y-3">
-                                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                                    Associated Documents
-                                </h4>
-                                {documents.length === 0 ? (
-                                    <div className="text-center py-8 border rounded-lg border-dashed">
-                                        <Icons.fileText className="mx-auto text-muted-foreground mb-2" size={24} />
-                                        <p className="text-sm text-muted-foreground">No documents uploaded</p>
-                                        <Link href="/merchant/documents" className="text-primary text-sm hover:underline mt-2 inline-block">
-                                            Upload Document
-                                        </Link>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {documents.map((doc) => (
-                                            <div key={doc._id} className="flex items-center justify-between p-3 rounded border hover:bg-muted/50 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
-                                                        <Icons.fileText size={16} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-medium">{doc.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{doc.type}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs bg-secondary px-2 py-0.5 rounded">
-                                                        {doc.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                                        Associated Documents
+                                    </h4>
+                                    <Link href="/merchant/documents" className="text-primary text-sm hover:underline">
+                                        + Upload
+                                    </Link>
+                                </div>
+                                <DocumentList 
+                                    documents={documents} 
+                                    emptyMessage="No documents uploaded for this product"
+                                />
                             </div>
                         </div>
                     </div>

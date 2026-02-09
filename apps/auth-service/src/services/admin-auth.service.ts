@@ -609,8 +609,9 @@ export class AdminAuthService {
     });
   }
   
-  private sanitizeAdmin(admin: IAdminUser): Partial<IAdminUser> {
+  private sanitizeAdmin(admin: IAdminUser): Partial<IAdminUser> & { id: string } {
     return {
+      id: admin._id.toString(),
       _id: admin._id,
       email: admin.email,
       firstName: admin.firstName,
@@ -620,6 +621,127 @@ export class AdminAuthService {
       mfaEnabled: admin.mfaEnabled,
       lastLoginAt: admin.lastLoginAt,
     };
+  }
+
+  /**
+   * Create a new admin user
+   * Only ADMIN or SUPER_ADMIN can create new admins
+   */
+  async createAdmin(data: {
+    email: string;
+    password?: string;
+    firstName: string;
+    lastName?: string;
+    role: 'ADMIN' | 'COMPLIANCE_REVIEWER' | 'VIEWER';
+    createdBy?: string;
+  }): Promise<{ admin: Partial<IAdminUser> & { id: string }; temporaryPassword?: string }> {
+    // Check if email already exists
+    const existingAdmin = await AdminUser.findOne({ email: data.email.toLowerCase() });
+    if (existingAdmin) {
+      throw new AdminAuthError('EMAIL_EXISTS', 'An admin with this email already exists', 409);
+    }
+
+    // Use provided password or generate a temporary one
+    const password = data.password || this.generateTemporaryPassword();
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Create the admin user
+    const adminData: Record<string, unknown> = {
+      email: data.email.toLowerCase(),
+      passwordHash,
+      firstName: data.firstName,
+      lastName: data.lastName || data.firstName,
+      role: data.role,
+      status: 'ACTIVE',
+      mfaEnabled: false,
+      failedLoginAttempts: 0,
+    };
+    
+    // Only set createdBy if it's a valid ObjectId
+    if (data.createdBy && data.createdBy.match(/^[0-9a-fA-F]{24}$/)) {
+      adminData.createdBy = data.createdBy;
+    }
+    
+    const admin = await AdminUser.create(adminData);
+
+    return {
+      admin: this.sanitizeAdmin(admin),
+      // Only return temporary password if one was generated
+      ...(data.password ? {} : { temporaryPassword: password }),
+    };
+  }
+
+  /**
+   * Generate a secure temporary password
+   */
+  private generateTemporaryPassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 16; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  /**
+   * Get all admin users (for admin management)
+   */
+  async getAllAdmins(filters?: { 
+    status?: string; 
+    role?: string;
+    search?: string;
+  }): Promise<(Partial<IAdminUser> & { id: string })[]> {
+    const query: Record<string, unknown> = {};
+    
+    if (filters?.status) {
+      query.status = filters.status;
+    }
+    if (filters?.role) {
+      query.role = filters.role;
+    }
+    if (filters?.search) {
+      query.$or = [
+        { email: { $regex: filters.search, $options: 'i' } },
+        { firstName: { $regex: filters.search, $options: 'i' } },
+        { lastName: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    const admins = await AdminUser.find(query)
+      .select('-passwordHash -mfaSecret -mfaBackupCodes')
+      .sort({ createdAt: -1 });
+
+    return admins.map(admin => this.sanitizeAdmin(admin));
+  }
+
+  /**
+   * Update admin status (activate/deactivate/unlock)
+   */
+  async updateAdminStatus(
+    adminId: string, 
+    status: 'ACTIVE' | 'DEACTIVATED' | 'LOCKED',
+    updatedBy: string,
+    reason?: string
+  ): Promise<Partial<IAdminUser> & { id: string }> {
+    const admin = await AdminUser.findById(adminId);
+    if (!admin) {
+      throw new AdminAuthError('ADMIN_NOT_FOUND', 'Admin user not found', 404);
+    }
+
+    admin.status = status;
+    
+    if (status === 'DEACTIVATED') {
+      admin.deactivatedAt = new Date();
+      admin.deactivatedBy = updatedBy as any;
+    }
+    
+    if (status === 'ACTIVE') {
+      admin.failedLoginAttempts = 0;
+      admin.lockedUntil = undefined;
+    }
+
+    await admin.save();
+    return this.sanitizeAdmin(admin);
   }
 }
 

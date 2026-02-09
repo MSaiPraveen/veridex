@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   FileText,
   Clock,
@@ -16,7 +16,9 @@ import {
   ArrowUpRight,
   Filter,
   SortAsc,
-  Calendar
+  Calendar,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -26,13 +28,16 @@ import { SearchInput, Select } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { PermissionGate } from '@/components/auth/permission-gate';
 import { AdminPermission } from '@/lib/admin-rbac';
+import { adminApi } from '@/lib/admin-api';
+import { DocumentViewer } from '@/components/ui/document-viewer';
 
 // Types
 interface ReviewItem {
   id: string;
   documentId: string;
   documentName: string;
-  documentType: 'COA' | 'LAB_REPORT' | 'BUSINESS_LICENSE' | 'INSURANCE';
+  documentType: string;
+  mimeType?: string;
   organizationId: string;
   organizationName: string;
   productName?: string;
@@ -44,7 +49,10 @@ interface ReviewItem {
   failureReasons?: string[];
   assignedTo?: string;
   ocrConfidence?: number;
-  extractedFields?: Record<string, { value: string; confidence: number }>;
+  extractedData?: Record<string, any>;
+  complianceStatus?: string;
+  complianceScore?: number;
+  complianceReasons?: string[];
 }
 
 interface DecisionHistory {
@@ -57,113 +65,7 @@ interface DecisionHistory {
   timeToDecision: string;
 }
 
-// Mock data
-const mockReviewQueue: ReviewItem[] = [
-  {
-    id: 'rev-001',
-    documentId: 'doc-001',
-    documentName: 'Lab Report - Batch #2024-Q4-142.pdf',
-    documentType: 'LAB_REPORT',
-    organizationId: 'org-001',
-    organizationName: 'GreenLeaf Labs',
-    productName: 'Full Spectrum CBD Oil 1000mg',
-    submittedAt: '2026-01-02T10:30:00Z',
-    slaDeadline: '2026-01-03T10:30:00Z',
-    slaStatus: 'AT_RISK',
-    priority: 'HIGH',
-    autoDecision: 'FAILED',
-    failureReasons: ['THC content exceeds 0.3% limit', 'Missing batch number in report'],
-    ocrConfidence: 94.2,
-    extractedFields: {
-      'THC Content': { value: '0.45%', confidence: 98 },
-      'CBD Content': { value: '22.1%', confidence: 96 },
-      'Batch Number': { value: 'NOT_FOUND', confidence: 0 },
-      'Test Date': { value: '2025-12-28', confidence: 99 },
-      'Lab Name': { value: 'CannaTech Labs', confidence: 97 },
-    }
-  },
-  {
-    id: 'rev-002',
-    documentId: 'doc-002',
-    documentName: 'Business License - Pure Hemp Co.pdf',
-    documentType: 'BUSINESS_LICENSE',
-    organizationId: 'org-002',
-    organizationName: 'Pure Hemp Co',
-    submittedAt: '2026-01-02T14:00:00Z',
-    slaDeadline: '2026-01-04T14:00:00Z',
-    slaStatus: 'ON_TRACK',
-    priority: 'MEDIUM',
-    autoDecision: 'NEEDS_REVIEW',
-    failureReasons: ['License expiration date unclear'],
-    ocrConfidence: 87.5,
-    extractedFields: {
-      'License Number': { value: 'OR-HEMP-2024-0089', confidence: 99 },
-      'Expiration Date': { value: 'UNCLEAR', confidence: 45 },
-      'Business Name': { value: 'Pure Hemp Co LLC', confidence: 98 },
-    }
-  },
-  {
-    id: 'rev-003',
-    documentId: 'doc-003',
-    documentName: 'COA - Hemp Gummies Batch #445.pdf',
-    documentType: 'COA',
-    organizationId: 'org-003',
-    organizationName: 'Herbal Solutions',
-    productName: 'Hemp Gummies 25mg',
-    submittedAt: '2026-01-01T09:00:00Z',
-    slaDeadline: '2026-01-02T09:00:00Z',
-    slaStatus: 'BREACHED',
-    priority: 'CRITICAL',
-    autoDecision: 'FAILED',
-    failureReasons: ['Heavy metals test missing', 'Pesticide panel incomplete'],
-    ocrConfidence: 91.8,
-  },
-  {
-    id: 'rev-004',
-    documentId: 'doc-004',
-    documentName: 'Insurance Certificate - GreenLeaf.pdf',
-    documentType: 'INSURANCE',
-    organizationId: 'org-001',
-    organizationName: 'GreenLeaf Labs',
-    submittedAt: '2026-01-02T16:00:00Z',
-    slaDeadline: '2026-01-05T16:00:00Z',
-    slaStatus: 'ON_TRACK',
-    priority: 'LOW',
-    autoDecision: 'PASSED',
-    ocrConfidence: 96.3,
-  },
-];
-
-const mockDecisionHistory: DecisionHistory[] = [
-  {
-    id: 'dec-001',
-    documentId: 'doc-010',
-    decision: 'APPROVED',
-    decidedBy: 'Sarah Miller',
-    decidedAt: '2026-01-02T11:30:00Z',
-    justification: 'Document meets all compliance requirements. THC within limits.',
-    timeToDecision: '2h 15m',
-  },
-  {
-    id: 'dec-002',
-    documentId: 'doc-011',
-    decision: 'REJECTED',
-    decidedBy: 'John Anderson',
-    decidedAt: '2026-01-02T10:00:00Z',
-    justification: 'Lab report expired. Requested merchant to provide updated COA.',
-    timeToDecision: '4h 30m',
-  },
-  {
-    id: 'dec-003',
-    documentId: 'doc-012',
-    decision: 'ESCALATED',
-    decidedBy: 'Sarah Miller',
-    decidedAt: '2026-01-01T15:00:00Z',
-    justification: 'THC reading borderline (0.29%). Escalating for secondary review.',
-    timeToDecision: '1h 45m',
-  },
-];
-
+// Priority and SLA configs
 const priorityConfig: Record<string, { bg: string; text: string; label: string }> = {
   LOW: { bg: 'bg-slate-500/10', text: 'text-slate-400', label: 'Low' },
   MEDIUM: { bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Medium' },
@@ -183,6 +85,52 @@ const autoDecisionConfig: Record<string, { bg: string; text: string; label: stri
   NEEDS_REVIEW: { bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Needs Review' },
 };
 
+// Transform API data to ReviewItem format
+function transformDocToReviewItem(doc: any): ReviewItem {
+  // Calculate SLA status based on upload date (48h SLA by default)
+  const uploadDate = new Date(doc.uploadedAt || doc.createdAt);
+  const slaDeadline = new Date(uploadDate.getTime() + 48 * 60 * 60 * 1000);
+  const now = new Date();
+  const hoursRemaining = (slaDeadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+  
+  let slaStatus: 'ON_TRACK' | 'AT_RISK' | 'BREACHED' = 'ON_TRACK';
+  if (hoursRemaining < 0) slaStatus = 'BREACHED';
+  else if (hoursRemaining < 12) slaStatus = 'AT_RISK';
+
+  // Determine priority based on compliance status
+  let priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'MEDIUM';
+  if (doc.complianceStatus === 'NON_COMPLIANT') priority = 'HIGH';
+  if (slaStatus === 'BREACHED') priority = 'CRITICAL';
+  if (doc.complianceStatus === 'COMPLIANT') priority = 'LOW';
+
+  // Determine auto-decision
+  let autoDecision: 'PASSED' | 'FAILED' | 'NEEDS_REVIEW' = 'NEEDS_REVIEW';
+  if (doc.complianceStatus === 'COMPLIANT') autoDecision = 'PASSED';
+  if (doc.complianceStatus === 'NON_COMPLIANT') autoDecision = 'FAILED';
+
+  return {
+    id: doc.id || doc._id,
+    documentId: doc.id || doc._id,
+    documentName: doc.originalName || doc.fileName || 'Document',
+    documentType: doc.documentType || doc.type || 'DOCUMENT',
+    mimeType: doc.mimeType,
+    organizationId: doc.organizationId || '',
+    organizationName: doc.organizationName || 'Unknown Organization',
+    productName: doc.productName,
+    submittedAt: doc.uploadedAt || doc.createdAt,
+    slaDeadline: slaDeadline.toISOString(),
+    slaStatus,
+    priority,
+    autoDecision,
+    failureReasons: doc.complianceReasons || [],
+    ocrConfidence: doc.extractedData?.confidence || 0,
+    extractedData: doc.extractedData,
+    complianceStatus: doc.complianceStatus,
+    complianceScore: doc.complianceScore,
+    complianceReasons: doc.complianceReasons,
+  };
+}
+
 export default function ReviewQueuePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -192,8 +140,65 @@ export default function ReviewQueuePage() {
   const [decisionType, setDecisionType] = useState<'approve' | 'reject' | 'escalate' | null>(null);
   const [justification, setJustification] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Real data state
+  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    failed: 0,
+    breached: 0,
+    atRisk: 0,
+  });
+  
+  // Real data - no mock data
+  const decisionHistory: { id: string; decision: string; timeToDecision: string; justification: string; decidedBy: string; decidedAt: string }[] = [];
+  
+  // Document viewer state
+  const [viewingDocument, setViewingDocument] = useState<ReviewItem | null>(null);
 
-  const filteredQueue = mockReviewQueue.filter(item => {
+  // Fetch review queue from API
+  const fetchReviewQueue = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await adminApi.get<any>('/admin/review?status=PENDING_REVIEW&limit=50');
+      
+      if (response.success && response.data) {
+        const documents = response.data.documents || response.data.data || [];
+        const transformedDocs = documents.map(transformDocToReviewItem);
+        setReviewQueue(transformedDocs);
+        
+        // Calculate stats
+        setStats({
+          total: transformedDocs.length,
+          pending: transformedDocs.filter((i: ReviewItem) => i.autoDecision === 'NEEDS_REVIEW').length,
+          failed: transformedDocs.filter((i: ReviewItem) => i.autoDecision === 'FAILED').length,
+          breached: transformedDocs.filter((i: ReviewItem) => i.slaStatus === 'BREACHED').length,
+          atRisk: transformedDocs.filter((i: ReviewItem) => i.slaStatus === 'AT_RISK').length,
+        });
+      } else {
+        setError('Failed to load review queue');
+        setReviewQueue([]);
+      }
+    } catch (err) {
+      console.error('Error fetching review queue:', err);
+      setError('Failed to load review queue');
+      setReviewQueue([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReviewQueue();
+  }, [fetchReviewQueue]);
+
+  // Filter the queue
+  const filteredQueue = reviewQueue.filter(item => {
     if (priorityFilter !== 'ALL' && item.priority !== priorityFilter) return false;
     if (slaFilter !== 'ALL' && item.slaStatus !== slaFilter) return false;
     if (searchQuery) {
@@ -204,25 +209,31 @@ export default function ReviewQueuePage() {
     return true;
   });
 
-  const stats = {
-    total: mockReviewQueue.length,
-    pending: mockReviewQueue.filter(i => i.autoDecision === 'NEEDS_REVIEW').length,
-    failed: mockReviewQueue.filter(i => i.autoDecision === 'FAILED').length,
-    breached: mockReviewQueue.filter(i => i.slaStatus === 'BREACHED').length,
-    atRisk: mockReviewQueue.filter(i => i.slaStatus === 'AT_RISK').length,
-  };
-
   const handleDecision = async () => {
-    if (!justification.trim()) return;
+    if (!justification.trim() || !selectedItem) return;
     setIsSubmitting(true);
-    // API call would go here
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log(`Decision: ${decisionType}`, { item: selectedItem?.id, justification });
-    setIsSubmitting(false);
-    setShowDecisionModal(false);
-    setSelectedItem(null);
-    setJustification('');
-    setDecisionType(null);
+    
+    try {
+      const decision = decisionType === 'approve' ? 'APPROVE' : decisionType === 'reject' ? 'REJECT' : 'FLAG';
+      
+      await adminApi.post(`/admin/review/${selectedItem.documentId}/decision`, {
+        decision,
+        reviewNote: justification,
+      });
+      
+      // Refresh the queue after decision
+      await fetchReviewQueue();
+      
+      setShowDecisionModal(false);
+      setSelectedItem(null);
+      setJustification('');
+      setDecisionType(null);
+    } catch (err) {
+      console.error('Failed to submit decision:', err);
+      alert('Failed to submit decision. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openDecisionModal = (item: ReviewItem, type: 'approve' | 'reject' | 'escalate') => {
@@ -242,6 +253,19 @@ export default function ReviewQueuePage() {
 
   return (
     <div className="space-y-6">
+      {/* Document Viewer Modal */}
+      {viewingDocument && (
+        <DocumentViewer
+          document={{
+            id: viewingDocument.documentId,
+            name: viewingDocument.documentName,
+            type: viewingDocument.documentType,
+            mimeType: viewingDocument.mimeType,
+          }}
+          onClose={() => setViewingDocument(null)}
+        />
+      )}
+      
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -251,6 +275,10 @@ export default function ReviewQueuePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="secondary" onClick={fetchReviewQueue} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh
+          </Button>
           <Button variant="secondary">
             <Filter className="h-4 w-4 mr-2" />
             Advanced Filters
@@ -325,7 +353,36 @@ export default function ReviewQueuePage() {
             </Button>
           </div>
 
-          {filteredQueue.map((item) => {
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+              <span className="ml-2 text-slate-600 dark:text-slate-400">Loading review queue...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="text-center py-12">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-500 font-medium">{error}</p>
+              <Button onClick={fetchReviewQueue} className="mt-4">
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && filteredQueue.length === 0 && (
+            <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+              <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+              <p className="text-slate-600 dark:text-slate-400 font-medium">All caught up!</p>
+              <p className="text-sm text-slate-500 mt-1">No documents pending review</p>
+            </div>
+          )}
+
+          {/* Review Items */}
+          {!loading && !error && filteredQueue.map((item) => {
             const priorityConf = priorityConfig[item.priority];
             const slaConf = slaConfig[item.slaStatus];
             const autoConf = item.autoDecision ? autoDecisionConfig[item.autoDecision] : null;
@@ -402,12 +459,15 @@ export default function ReviewQueuePage() {
 
                     {/* Actions */}
                     <div className="flex flex-col gap-2">
-                      <Link href={`/documents/${item.documentId}`}>
-                        <Button variant="secondary" size="sm" className="w-full">
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      </Link>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => setViewingDocument(item)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
                       <PermissionGate permission={AdminPermission.DOC_APPROVE}>
                         <Button
                           variant="primary"
@@ -483,7 +543,9 @@ export default function ReviewQueuePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockDecisionHistory.map((decision) => (
+                {decisionHistory.length === 0 ? (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No recent decisions</p>
+                ) : decisionHistory.map((decision) => (
                   <div key={decision.id} className="border-b border-slate-200 dark:border-slate-700/50 pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center justify-between mb-2">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${decision.decision === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :

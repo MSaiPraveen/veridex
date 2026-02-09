@@ -9,7 +9,7 @@ function serviceUrl(name: string, port: number): string {
 
 export const services = {
   auth: serviceUrl('auth-service', 3001),
-  audit: serviceUrl('audit-log-service', 3002),
+  audit: serviceUrl('audit-log-service', 3008),  // Fixed: was 3002, should be 3008
   userOrg: serviceUrl('user-org-service', 3003),
   product: serviceUrl('product-service', 3004),
   document: serviceUrl('document-service', 3005),

@@ -1,7 +1,7 @@
 import { log } from '../utils/logger';
 import { connect } from '../utils/mongo';
 import { DB_URIS } from '../config/env';
-import { getAuthUserModel, getUserProfileModel, getOrganizationModel, getMembershipModel } from './schemas';
+import { getAuthUserModel, getAdminUserModel, getUserProfileModel, getOrganizationModel, getMembershipModel } from './schemas';
 import { MERCHANTS, ADMIN_USER, hashPassword } from './data';
 
 /**
@@ -70,11 +70,15 @@ export async function seedMerchants(): Promise<void> {
   for (const merchant of MERCHANTS) {
     const passwordHash = await hashPassword(merchant.password);
     
-    // Auth record
+    // Get the organization ID for this merchant
+    const orgId = createdOrganizations.get(merchant.organizationName)!;
+    
+    // Auth record with organizationId
     const authUser = await AuthUser.create({
       email: merchant.email,
       passwordHash,
       role: 'MERCHANT',
+      organizationId: orgId,
       isActive: true,
     });
 
@@ -91,8 +95,7 @@ export async function seedMerchants(): Promise<void> {
       isActive: true,
     });
 
-    // Membership
-    const orgId = createdOrganizations.get(merchant.organizationName)!;
+    // Membership (reuse orgId from above)
     await Membership.create({
       userId: String(userProfile._id),
       organizationId: orgId,
@@ -109,6 +112,7 @@ export async function seedMerchants(): Promise<void> {
   
   const adminPasswordHash = await hashPassword(ADMIN_USER.password);
   
+  // Create in AuthUser collection (legacy support)
   const adminAuthUser = await AuthUser.create({
     email: ADMIN_USER.email,
     passwordHash: adminPasswordHash,
@@ -125,7 +129,23 @@ export async function seedMerchants(): Promise<void> {
     isActive: true,
   });
 
+  // Create in AdminUser collection (admin portal authentication)
+  const AdminUser = getAdminUserModel(authDb);
+  await AdminUser.deleteMany({ email: ADMIN_USER.email });
+  await AdminUser.create({
+    email: ADMIN_USER.email,
+    passwordHash: adminPasswordHash,
+    firstName: ADMIN_USER.firstName,
+    lastName: ADMIN_USER.lastName,
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    createdBy: adminAuthUser._id,
+  });
+
   log.info(`Created admin: ${ADMIN_USER.email}`);
+  log.info(`Admin portal login enabled (MFA disabled for development)`);
 
   log.count('Organizations created', orgNames.length);
   log.count('Merchants created', merchantsCreated);

@@ -3,6 +3,8 @@ import 'dotenv/config';
 /**
  * Script-level environment configuration.
  * Separate from service configs to maintain isolation.
+ * 
+ * Uses MongoDB Atlas URIs from .env file
  */
 
 function requireEnv(key: string): string {
@@ -14,13 +16,13 @@ function requireEnv(key: string): string {
 }
 
 export const DB_URIS = {
-  auth: requireEnv('MONGO_AUTH_URI'),
-  userOrg: requireEnv('MONGO_USER_ORG_URI'),
-  products: requireEnv('MONGO_PRODUCTS_URI'),
-  documents: requireEnv('MONGO_DOCUMENTS_URI'),
-  compliance: requireEnv('MONGO_COMPLIANCE_URI'),
-  audit: requireEnv('MONGO_AUDIT_URI'),
-  notifications: requireEnv('MONGO_NOTIFICATIONS_URI'),
+  auth: requireEnv('MONGO_URI_AUTH'),
+  userOrg: requireEnv('MONGO_URI_USERS'),
+  products: requireEnv('MONGO_URI_PRODUCTS'),
+  documents: requireEnv('MONGO_URI_DOCUMENTS'),
+  compliance: requireEnv('MONGO_URI_COMPLIANCE'),
+  audit: requireEnv('MONGO_URI_AUDIT'),
+  notifications: requireEnv('MONGO_URI_NOTIFICATIONS'),
 } as const;
 
 export type DatabaseName = keyof typeof DB_URIS;

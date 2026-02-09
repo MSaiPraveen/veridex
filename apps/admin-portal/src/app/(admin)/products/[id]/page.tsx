@@ -39,6 +39,7 @@ import { EmptyState, ErrorState } from '@/components/ui/empty-state';
 import { PermissionGate, useAdminPermissions } from '@/components/auth/permission-gate';
 import { AdminPermission } from '@/lib/admin-rbac';
 import { adminApi } from '@/lib/admin-api';
+import { DocumentList, DocumentData } from '@/components/ui/document-viewer';
 
 // Types
 interface ProductDetail {
@@ -61,10 +62,25 @@ interface ProductDetail {
 
 interface Document {
   id: string;
+  _id?: string;
+  name?: string;
   fileName: string;
+  type?: string;
   documentType: string;
-  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'PROCESSING';
+  mimeType?: string;
+  fileSize?: number;
+  status: 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'PROCESSING' | 'ACTIVE';
   uploadedAt: string;
+  extracted?: {
+    issuedTo?: string;
+    issuedBy?: string;
+    licenseNumber?: string;
+    validUntil?: string;
+    thcContent?: number;
+    cbdContent?: number;
+    batchNumber?: string;
+    confidence?: number;
+  };
 }
 
 interface Batch {
@@ -124,6 +140,34 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   const permissions = useAdminPermissions();
 
+  // Fetch product documents
+  const fetchProductDocuments = useCallback(async (prodId: string) => {
+    try {
+      const docsResponse = await adminApi.get<Document[]>(`/products/${prodId}/documents`);
+      if (docsResponse.success && docsResponse.data) {
+        // Map API response to Document interface
+        const docs = (docsResponse.data as any[]).map((doc: any) => ({
+          id: doc._id || doc.id,
+          _id: doc._id,
+          name: doc.name,
+          fileName: doc.fileName || doc.name,
+          type: doc.type,
+          documentType: doc.type || doc.documentType,
+          mimeType: doc.mimeType,
+          fileSize: doc.fileSize,
+          status: doc.status,
+          uploadedAt: doc.createdAt || doc.uploadedAt,
+          extracted: doc.extracted,
+        }));
+        setDocuments(docs);
+      }
+    } catch (err) {
+      console.error('Failed to fetch documents:', err);
+      // No mock fallbacks - show empty state
+      setDocuments([]);
+    }
+  }, []);
+
   // Fetch product data
   const fetchProduct = useCallback(async () => {
     setLoading(true);
@@ -140,9 +184,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           id: productData._id || productData.id,
         });
         // Fetch related data
-        setDocuments(getMockDocuments());
-        setBatches(getMockBatches());
-        setComplianceHistory(getMockComplianceHistory());
+        await fetchProductDocuments(productId);
+        setBatches([]);
+        setComplianceHistory([]);
       } else {
         setError('Product not found');
       }
@@ -152,7 +196,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [productId, fetchProductDocuments]);
 
   useEffect(() => {
     fetchProduct();
@@ -401,66 +445,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       )}
 
       {activeTab === 'documents' && (
-        <Card padding="none">
-          {documents.length === 0 ? (
-            <EmptyState
-              icon={<FileText className="h-12 w-12" />}
-              title="No documents"
-              description="No documents have been uploaded for this product"
-              className="py-12"
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead align="right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map(doc => {
-                  const docStatus = documentStatusConfig[doc.status];
-                  return (
-                    <TableRow key={doc.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-slate-400" />
-                          <span className="font-medium text-slate-900 dark:text-white">{doc.fileName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge>{doc.documentType.replace(/_/g, ' ')}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${docStatus.bg} ${docStatus.text}`}>
-                          {doc.status.replace(/_/g, ' ')}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-slate-500 text-sm">{formatDate(doc.uploadedAt)}</span>
-                      </TableCell>
-                      <TableCell align="right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Link href={`/documents/${doc.id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          </Link>
-                          <Button variant="ghost" size="sm">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+        <Card className="p-6">
+          <DocumentList 
+            documents={documents.map(doc => ({
+              id: doc.id,
+              _id: doc._id,
+              name: doc.name || doc.fileName,
+              type: doc.type || doc.documentType,
+              mimeType: doc.mimeType,
+              fileSize: doc.fileSize,
+              status: doc.status,
+              extracted: doc.extracted,
+            }))}
+            emptyMessage="No documents have been uploaded for this product"
+          />
         </Card>
       )}
 

@@ -56,7 +56,7 @@ services:
     restart: unless-stopped
 
   # ============================================================================
-  # BACKEND SERVICES
+  # BACKEND SERVICES (Using MongoDB Atlas - no local mongo needed)
   # ============================================================================
 
   auth-service:
@@ -71,6 +71,8 @@ services:
       - MONGO_URI=${MONGO_URI_AUTH}
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - ADMIN_JWT_REFRESH_SECRET=${ADMIN_JWT_REFRESH_SECRET}
       - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL:-15m}
       - REFRESH_TOKEN_TTL=${REFRESH_TOKEN_TTL:-7d}
       - KAFKA_BROKER=kafka:9092
@@ -124,7 +126,7 @@ services:
       - PORT=3005
       - MONGO_URI=${MONGO_URI_DOCUMENTS}
       - KAFKA_BROKER=kafka:9092
-      - UPLOAD_DIR=/app/uploads
+      - FILE_STORAGE_PATH=/app/uploads
     volumes:
       - document_uploads:/app/uploads
     depends_on:
@@ -195,9 +197,13 @@ services:
       - PORT=3002
       - NODE_ENV=${NODE_ENV:-development}
       - JWT_SECRET=${JWT_ACCESS_SECRET}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-admin-jwt-secret-change-in-production}
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKERS=kafka:9092
       - DOCKER_ENV=true
+      # CORS origins
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - ADMIN_FRONTEND_URL=${ADMIN_FRONTEND_URL:-http://localhost:4000}
       # Service URLs (Docker internal networking)
       - AUTH_SERVICE_URL=http://auth-service:3001
       - USER_SERVICE_URL=http://user-org-service:3003

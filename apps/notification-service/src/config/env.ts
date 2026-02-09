@@ -1,16 +1,14 @@
 import 'dotenv/config';
-import { z } from 'zod';
+import { requireEnv, requireSecret, getEnv } from '@veridex/shared';
 
-const envSchema = z.object({
-  PORT: z.string().default('3007'),
-  MONGO_URI: z.string(),
-  KAFKA_BROKER: z.string(),
+export const env = {
+  PORT: getEnv('PORT', '3007'),
+  MONGO_URI: requireEnv('MONGO_URI', 'mongodb://localhost:27017/veridex_notifications'),
+  KAFKA_BROKER: getEnv('KAFKA_BROKER', 'localhost:9092'),
 
-  SMTP_HOST: z.string(),
-  SMTP_PORT: z.string(),
-  SMTP_USER: z.string(),
-  SMTP_PASS: z.string(),
-  SMTP_FROM: z.string(),
-});
-
-export const env = envSchema.parse(process.env);
+  SMTP_HOST: requireEnv('SMTP_HOST', 'localhost'),
+  SMTP_PORT: getEnv('SMTP_PORT', '587'),
+  SMTP_USER: getEnv('SMTP_USER', ''),
+  SMTP_PASS: requireSecret('SMTP_PASS', 'dev-smtp-password-at-least-32-characters'),
+  SMTP_FROM: getEnv('SMTP_FROM', 'noreply@veridex.io'),
+};

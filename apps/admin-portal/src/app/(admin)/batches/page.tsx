@@ -59,71 +59,10 @@ export default function BatchesPage() {
   
   const permissions = useAdminPermissions();
   
-  // Mock data
-  const mockBatches: Batch[] = [
-    {
-      id: 'batch-001',
-      batchNumber: '2024-Q4-142',
-      productId: 'prod-001',
-      productName: 'Full Spectrum CBD Oil 1000mg',
-      organizationId: 'org-001',
-      organizationName: 'GreenLeaf Labs',
-      status: 'APPROVED',
-      complianceStatus: 'COMPLIANT',
-      quantity: 5000,
-      manufactureDate: '2025-10-15',
-      expirationDate: '2026-10-15',
-      documentsCount: 4,
-      createdAt: '2025-10-15T10:00:00Z',
-    },
-    {
-      id: 'batch-002',
-      batchNumber: '2024-Q4-189',
-      productId: 'prod-002',
-      productName: 'CBD Gummies 25mg',
-      organizationId: 'org-002',
-      organizationName: 'Pure Hemp Co',
-      status: 'PENDING',
-      complianceStatus: 'PENDING_REVIEW',
-      quantity: 10000,
-      manufactureDate: '2025-12-20',
-      expirationDate: '2026-06-20',
-      documentsCount: 2,
-      createdAt: '2025-12-20T14:30:00Z',
-    },
-    {
-      id: 'batch-003',
-      batchNumber: '2024-Q3-078',
-      productId: 'prod-003',
-      productName: 'Hemp Extract Capsules',
-      organizationId: 'org-003',
-      organizationName: 'Herbal Solutions',
-      status: 'RECALLED',
-      complianceStatus: 'NON_COMPLIANT',
-      quantity: 3000,
-      manufactureDate: '2025-08-10',
-      expirationDate: '2026-08-10',
-      documentsCount: 5,
-      createdAt: '2025-08-10T09:00:00Z',
-    },
-    {
-      id: 'batch-004',
-      batchNumber: '2024-Q4-205',
-      productId: 'prod-001',
-      productName: 'Full Spectrum CBD Oil 1000mg',
-      organizationId: 'org-001',
-      organizationName: 'GreenLeaf Labs',
-      status: 'QUARANTINED',
-      complianceStatus: 'PENDING_REVIEW',
-      quantity: 2500,
-      manufactureDate: '2025-12-28',
-      expirationDate: '2026-12-28',
-      documentsCount: 3,
-      createdAt: '2025-12-28T11:00:00Z',
-    },
-  ];
+  // Real data - no mock data
+  const batches: Batch[] = [];
   
-  const filteredBatches = mockBatches.filter(batch => {
+  const filteredBatches = batches.filter(batch => {
     if (statusFilter !== 'ALL' && batch.status !== statusFilter) return false;
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
@@ -150,10 +89,10 @@ export default function BatchesPage() {
   
   // Stats
   const stats = {
-    total: mockBatches.length,
-    approved: mockBatches.filter(b => b.status === 'APPROVED').length,
-    pending: mockBatches.filter(b => b.status === 'PENDING').length,
-    issues: mockBatches.filter(b => b.status === 'RECALLED' || b.status === 'QUARANTINED').length,
+    total: batches.length,
+    approved: batches.filter(b => b.status === 'APPROVED').length,
+    pending: batches.filter(b => b.status === 'PENDING').length,
+    issues: batches.filter(b => b.status === 'RECALLED' || b.status === 'QUARANTINED').length,
   };
   
   return (

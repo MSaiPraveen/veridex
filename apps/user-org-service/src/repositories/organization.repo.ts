@@ -59,6 +59,16 @@ export const OrganizationRepo = {
   },
 
   /**
+   * Find multiple organizations by IDs (for batch lookup)
+   */
+  async findByIds(ids: string[]): Promise<IOrganization[]> {
+    const objectIds = ids.map(id => new mongoose.Types.ObjectId(id));
+    return OrganizationModel.find({ 
+      _id: { $in: objectIds } 
+    }).select('_id name type').lean();
+  },
+
+  /**
    * Find all organizations with pagination and filtering
    */
   async findAll(options: OrgQueryOptions = {}): Promise<PaginatedResult<IOrganization>> {

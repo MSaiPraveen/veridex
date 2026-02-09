@@ -366,6 +366,21 @@ export function useDocument(id: string | null) {
   return useFetch<ApiResponse<Document>>(id ? `/documents/${id}` : null);
 }
 
+// Get documents for a specific product
+export function useProductDocuments(productId: string | null) {
+  return useFetch<ApiResponse<Document[]>>(productId ? `/products/${productId}/documents` : null, [productId]);
+}
+
+// Get document content URL for viewing in browser
+export function getDocumentContentUrl(documentId: string): string {
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/documents/${documentId}/content`;
+}
+
+// Get document download URL
+export function getDocumentDownloadUrl(documentId: string): string {
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/documents/${documentId}/download`;
+}
+
 export async function uploadDocument(
   file: File,
   metadata: {

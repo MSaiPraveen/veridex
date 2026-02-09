@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -25,7 +25,8 @@ import {
   Download,
   Eye,
   TrendingUp,
-  Boxes
+  Boxes,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -37,6 +38,9 @@ import { Modal } from '@/components/ui/modal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Pagination } from '@/components/ui/table';
 import { PermissionGate, useAdminPermissions } from '@/components/auth/permission-gate';
 import { AdminPermission } from '@/lib/admin-rbac';
+import { useOrganization } from '@/hooks/use-organizations';
+import { useOrganizationProducts, Product } from '@/hooks/use-products';
+import { adminApi } from '@/lib/api-client';
 
 // Types
 interface OrganizationMember {
@@ -76,62 +80,10 @@ interface OrganizationActivity {
   actor: string;
 }
 
-// Mock data
-const mockOrganization = {
-  id: 'org-001',
-  name: 'GreenLeaf Labs',
-  legalName: 'GreenLeaf Labs LLC',
-  type: 'MERCHANT',
-  status: 'ACTIVE',
-  complianceScore: 94,
-  riskLevel: 'LOW',
-  jurisdiction: 'California',
-  email: 'contact@greenleaflabs.com',
-  phone: '+1 (555) 123-4567',
-  website: 'https://greenleaflabs.com',
-  address: {
-    street: '123 Hemp Street',
-    city: 'Los Angeles',
-    state: 'CA',
-    zip: '90001',
-    country: 'USA'
-  },
-  createdAt: '2025-03-15T10:00:00Z',
-  verifiedAt: '2025-03-20T14:30:00Z',
-  lastReviewAt: '2025-12-28T09:00:00Z',
-  licenseNumber: 'CA-HEMP-2025-0142',
-  ein: '**-***7890',
-  description: 'Premium hemp-derived CBD products manufacturer specializing in full-spectrum tinctures and edibles. FDA registered facility with GMP certification.',
-};
-
-const mockMembers: OrganizationMember[] = [
-  { id: '1', name: 'Michael Green', email: 'owner@greenleaflabs.com', role: 'OWNER', status: 'ACTIVE', lastLogin: '2026-01-02T14:00:00Z' },
-  { id: '2', name: 'Sarah Leaf', email: 'staff@greenleaflabs.com', role: 'STAFF', status: 'ACTIVE', lastLogin: '2026-01-01T10:00:00Z' },
-  { id: '3', name: 'John Hemp', email: 'admin@greenleaflabs.com', role: 'ADMIN', status: 'PENDING' },
-];
-
-const mockProducts: OrganizationProduct[] = [
-  { id: 'prod-1', name: 'CBD Oil 500mg', sku: 'CBD-500', category: 'Tinctures', status: 'ACTIVE', complianceStatus: 'COMPLIANT', batchCount: 8, lastUpdated: '2025-12-28' },
-  { id: 'prod-2', name: 'CBD Oil 1000mg', sku: 'CBD-1000', category: 'Tinctures', status: 'ACTIVE', complianceStatus: 'COMPLIANT', batchCount: 12, lastUpdated: '2025-12-30' },
-  { id: 'prod-3', name: 'Hemp Gummies 25mg', sku: 'GUM-25', category: 'Edibles', status: 'ACTIVE', complianceStatus: 'COMPLIANT', batchCount: 5, lastUpdated: '2025-12-25' },
-  { id: 'prod-4', name: 'CBD Topical Cream', sku: 'TOP-100', category: 'Topicals', status: 'PENDING', complianceStatus: 'PENDING_REVIEW', batchCount: 2, lastUpdated: '2025-12-20' },
-  { id: 'prod-5', name: 'Full Spectrum Tincture', sku: 'FST-30', category: 'Tinctures', status: 'SUSPENDED', complianceStatus: 'NON_COMPLIANT', batchCount: 0, lastUpdated: '2025-12-15' },
-  { id: 'prod-6', name: 'Sleep Aid Capsules', sku: 'SLP-30', category: 'Capsules', status: 'PENDING', complianceStatus: 'PENDING_REVIEW', batchCount: 1, lastUpdated: '2025-12-22' },
-];
-
-const mockDocuments: OrganizationDocument[] = [
-  { id: 'doc-1', name: 'Business License - California', type: 'LICENSE', status: 'VERIFIED', uploadedAt: '2025-03-15', expiresAt: '2026-03-15' },
-  { id: 'doc-2', name: 'Certificate of Insurance', type: 'INSURANCE', status: 'VERIFIED', uploadedAt: '2025-01-01', expiresAt: '2026-01-01' },
-  { id: 'doc-3', name: 'Lab Report - Batch #2024-Q4', type: 'LAB_REPORT', status: 'VERIFIED', uploadedAt: '2025-12-28' },
-  { id: 'doc-4', name: 'COA - CBD Oil 1000mg', type: 'COA', status: 'PENDING', uploadedAt: '2025-12-30' },
-];
-
-const mockActivity: OrganizationActivity[] = [
-  { id: '1', action: 'Document Uploaded', description: 'COA for CBD Oil 1000mg uploaded for review', timestamp: '2025-12-30T14:30:00Z', actor: 'Michael Green' },
-  { id: '2', action: 'Compliance Check', description: 'Automated compliance check passed for Hemp Gummies', timestamp: '2025-12-28T10:00:00Z', actor: 'System' },
-  { id: '3', action: 'Product Suspended', description: 'Full Spectrum Tincture suspended - THC limit exceeded', timestamp: '2025-12-15T09:00:00Z', actor: 'Compliance Team' },
-  { id: '4', action: 'Batch Created', description: 'New batch #2024-Q4-156 created for CBD Oil 500mg', timestamp: '2025-12-10T11:00:00Z', actor: 'Sarah Leaf' },
-];
+// Type aliases for shorter names in JSX
+type Member = OrganizationMember;
+type Document = OrganizationDocument;
+type Activity = OrganizationActivity;
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   ACTIVE: { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
@@ -162,16 +114,91 @@ export default function OrganizationDetailPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [productPage, setProductPage] = useState(1);
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [documents, setDocuments] = useState<OrganizationDocument[]>([]);
+  const [activity, setActivity] = useState<OrganizationActivity[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   
-  const org = mockOrganization; // In production, fetch based on params.id
+  const orgId = params.id as string;
+  
+  // Fetch organization from API
+  const { organization: org, loading: orgLoading, error: orgError, refresh: refreshOrg } = useOrganization(orgId);
+  
+  // Fetch products for this organization
+  const { products: orgProducts, loading: productsLoading, refresh: refreshProducts } = useOrganizationProducts(orgId);
+  
+  // Fetch members, documents, and activity when tab changes
+  useEffect(() => {
+    if (activeTab === 'members' && members.length === 0 && orgId) {
+      setLoadingMembers(true);
+      adminApi.get<OrganizationMember[]>(`/admin/organizations/${orgId}/members`)
+        .then(res => {
+          if (res.success && res.data) {
+            setMembers(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .finally(() => setLoadingMembers(false));
+    }
+    
+    if (activeTab === 'documents' && documents.length === 0 && orgId) {
+      setLoadingDocuments(true);
+      adminApi.get<OrganizationDocument[]>(`/admin/organizations/${orgId}/documents`)
+        .then(res => {
+          if (res.success && res.data) {
+            setDocuments(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .finally(() => setLoadingDocuments(false));
+    }
+    
+    if (activeTab === 'activity' && activity.length === 0 && orgId) {
+      setLoadingActivity(true);
+      adminApi.get<OrganizationActivity[]>(`/admin/organizations/${orgId}/audit-trail`)
+        .then(res => {
+          if (res.success && res.data) {
+            setActivity(Array.isArray(res.data) ? res.data : []);
+          }
+        })
+        .finally(() => setLoadingActivity(false));
+    }
+  }, [activeTab, orgId, members.length, documents.length, activity.length]);
   
   const tabs: { id: TabType; label: string; icon: typeof Building2; count?: number }[] = [
     { id: 'overview', label: 'Overview', icon: Building2 },
-    { id: 'products', label: 'Products', icon: Package, count: mockProducts.length },
-    { id: 'documents', label: 'Documents', icon: FileText, count: mockDocuments.length },
-    { id: 'members', label: 'Members', icon: Users, count: mockMembers.length },
+    { id: 'products', label: 'Products', icon: Package, count: orgProducts.length },
+    { id: 'documents', label: 'Documents', icon: FileText, count: documents.length },
+    { id: 'members', label: 'Members', icon: Users, count: members.length },
     { id: 'activity', label: 'Activity', icon: Clock },
   ];
+  
+  // Loading state
+  if (orgLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+        <span className="ml-3 text-slate-600 dark:text-slate-400">Loading organization...</span>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (orgError || !org) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-medium text-slate-900 dark:text-white">Organization not found</h3>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">{orgError || 'The organization could not be loaded.'}</p>
+        <button
+          onClick={() => router.back()}
+          className="mt-4 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
   
   const getComplianceScoreColor = (score: number) => {
     if (score >= 90) return 'text-emerald-400';
@@ -209,10 +236,10 @@ export default function OrganizationDetailPage() {
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[org.status].bg} ${statusColors[org.status].text}`}>
                     {org.status}
                   </span>
-                  {getRiskBadge(org.riskLevel)}
+                  {org.riskLevel && getRiskBadge(org.riskLevel)}
                 </div>
                 <p className="text-slate-400 mt-1">
-                  {org.legalName} • {org.type} • {org.jurisdiction}
+                  {org.legalName || org.name} • {org.type} {org.jurisdiction ? `• ${org.jurisdiction}` : ''}
                 </p>
               </div>
             </div>
@@ -258,8 +285,8 @@ export default function OrganizationDetailPage() {
               <p className="text-sm text-slate-400">Compliance Score</p>
               <Shield className="h-4 w-4 text-slate-500" />
             </div>
-            <p className={`text-3xl font-bold mt-2 ${getComplianceScoreColor(org.complianceScore)}`}>
-              {org.complianceScore}%
+            <p className={`text-3xl font-bold mt-2 ${getComplianceScoreColor(org.complianceScore ?? 0)}`}>
+              {org.complianceScore ?? 0}%
             </p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
@@ -268,7 +295,7 @@ export default function OrganizationDetailPage() {
               <Package className="h-4 w-4 text-slate-500" />
             </div>
             <p className="text-3xl font-bold mt-2 text-white">
-              {mockProducts.filter(p => p.status === 'ACTIVE').length}
+              {orgProducts.filter((p: Product) => p.status === 'ACTIVE').length}
             </p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
@@ -276,14 +303,14 @@ export default function OrganizationDetailPage() {
               <p className="text-sm text-slate-400">Documents</p>
               <FileText className="h-4 w-4 text-slate-500" />
             </div>
-            <p className="text-3xl font-bold mt-2 text-white">{mockDocuments.length}</p>
+            <p className="text-3xl font-bold mt-2 text-white">{documents.length}</p>
           </div>
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-400">Team Members</p>
               <Users className="h-4 w-4 text-slate-500" />
             </div>
-            <p className="text-3xl font-bold mt-2 text-white">{mockMembers.length}</p>
+            <p className="text-3xl font-bold mt-2 text-white">{members.length}</p>
           </div>
         </div>
 
@@ -329,15 +356,15 @@ export default function OrganizationDetailPage() {
                   <CardTitle>About</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-300">{org.description}</p>
+                  <p className="text-slate-300">{org.description || 'No description available.'}</p>
                   <div className="grid grid-cols-2 gap-6 mt-6">
                     <div>
                       <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">License Number</p>
-                      <p className="text-white font-medium">{org.licenseNumber}</p>
+                      <p className="text-white font-medium">{org.licenseNumber || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">EIN</p>
-                      <p className="text-white font-medium">{org.ein}</p>
+                      <p className="text-white font-medium">{org.ein || org.taxId || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Registered</p>
@@ -345,7 +372,7 @@ export default function OrganizationDetailPage() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Last Review</p>
-                      <p className="text-white font-medium">{new Date(org.lastReviewAt).toLocaleDateString()}</p>
+                      <p className="text-white font-medium">{org.lastReviewAt ? new Date(org.lastReviewAt).toLocaleDateString() : 'Never'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -366,8 +393,8 @@ export default function OrganizationDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockProducts.slice(0, 4).map((product) => (
-                      <div key={product.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-colors">
+                    {orgProducts.slice(0, 4).map((product: Product) => (
+                      <div key={product._id} className="flex items-center justify-between p-3 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-slate-600/50 flex items-center justify-center">
                             <Package className="h-5 w-5 text-slate-400" />
@@ -378,10 +405,10 @@ export default function OrganizationDetailPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${complianceColors[product.complianceStatus].bg} ${complianceColors[product.complianceStatus].text}`}>
-                            {complianceColors[product.complianceStatus].label}
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${complianceColors[product.complianceStatus]?.bg || 'bg-slate-500/10'} ${complianceColors[product.complianceStatus]?.text || 'text-slate-400'}`}>
+                            {complianceColors[product.complianceStatus]?.label || product.complianceStatus}
                           </span>
-                          <Link href={`/products/${product.id}`}>
+                          <Link href={`/products/${product._id}`}>
                             <Button variant="ghost" size="sm">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -418,8 +445,8 @@ export default function OrganizationDetailPage() {
                   <div className="flex items-start gap-3 text-slate-300">
                     <MapPin className="h-4 w-4 text-slate-500 mt-0.5" />
                     <span className="text-sm">
-                      {org.address.street}<br />
-                      {org.address.city}, {org.address.state} {org.address.zip}
+                      {org.address?.street || 'No address'}<br />
+                      {org.address?.city ? `${org.address.city}, ` : ''}{org.address?.state || ''} {org.address?.postalCode || org.address?.zip || ''}
                     </span>
                   </div>
                 </CardContent>
@@ -440,14 +467,14 @@ export default function OrganizationDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockMembers.map((member) => (
+                    {members.map((member: Member) => (
                       <div key={member.id} className="flex items-center gap-3">
                         <Avatar name={member.name} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white truncate">{member.name}</p>
                           <p className="text-xs text-slate-400 truncate">{member.email}</p>
                         </div>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${roleColors[member.role]}`}>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${roleColors[member.role as keyof typeof roleColors] || 'bg-slate-500/20 text-slate-400'}`}>
                           {member.role}
                         </span>
                       </div>
@@ -477,14 +504,14 @@ export default function OrganizationDetailPage() {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
-                          strokeDasharray={`${org.complianceScore} 100`}
+                          strokeDasharray={`${org.complianceScore ?? 0} 100`}
                           strokeLinecap="round"
-                          className={getComplianceScoreColor(org.complianceScore)}
+                          className={getComplianceScoreColor(org.complianceScore ?? 0)}
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-2xl font-bold ${getComplianceScoreColor(org.complianceScore)}`}>
-                          {org.complianceScore}%
+                        <span className={`text-2xl font-bold ${getComplianceScoreColor(org.complianceScore ?? 0)}`}>
+                          {org.complianceScore ?? 0}%
                         </span>
                       </div>
                     </div>
@@ -492,15 +519,15 @@ export default function OrganizationDetailPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-400">Compliant Products</span>
-                      <span className="text-emerald-400">{mockProducts.filter(p => p.complianceStatus === 'COMPLIANT').length}</span>
+                      <span className="text-emerald-400">{orgProducts.filter((p: Product) => p.complianceStatus === 'COMPLIANT').length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Pending Review</span>
-                      <span className="text-amber-400">{mockProducts.filter(p => p.complianceStatus === 'PENDING_REVIEW').length}</span>
+                      <span className="text-amber-400">{orgProducts.filter((p: Product) => p.complianceStatus === 'PENDING' || p.complianceStatus === 'UNDER_REVIEW').length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Non-Compliant</span>
-                      <span className="text-red-400">{mockProducts.filter(p => p.complianceStatus === 'NON_COMPLIANT').length}</span>
+                      <span className="text-red-400">{orgProducts.filter((p: Product) => p.complianceStatus === 'NON_COMPLIANT').length}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -513,7 +540,7 @@ export default function OrganizationDetailPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Products ({mockProducts.length})</CardTitle>
+                <CardTitle>Products ({orgProducts.length})</CardTitle>
                 <PermissionGate permission={AdminPermission.PRODUCT_REVIEW}>
                   <Button variant="secondary" size="sm">
                     <Package className="h-4 w-4 mr-2" />
@@ -537,25 +564,25 @@ export default function OrganizationDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockProducts.map((product) => (
-                    <TableRow key={product.id}>
+                  {orgProducts.map((product: Product) => (
+                    <TableRow key={product._id}>
                       <TableCell className="font-medium text-white">{product.name}</TableCell>
                       <TableCell className="text-slate-400">{product.sku}</TableCell>
                       <TableCell className="text-slate-400">{product.category}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[product.status].bg} ${statusColors[product.status].text}`}>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[product.status as keyof typeof statusColors]?.bg || 'bg-slate-500/20'} ${statusColors[product.status as keyof typeof statusColors]?.text || 'text-slate-400'}`}>
                           {product.status}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${complianceColors[product.complianceStatus].bg} ${complianceColors[product.complianceStatus].text}`}>
-                          {complianceColors[product.complianceStatus].label}
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${complianceColors[product.complianceStatus as keyof typeof complianceColors]?.bg || 'bg-slate-500/20'} ${complianceColors[product.complianceStatus as keyof typeof complianceColors]?.text || 'text-slate-400'}`}>
+                          {complianceColors[product.complianceStatus as keyof typeof complianceColors]?.label || product.complianceStatus}
                         </span>
                       </TableCell>
-                      <TableCell className="text-slate-400">{product.batchCount}</TableCell>
-                      <TableCell className="text-slate-400">{product.lastUpdated}</TableCell>
+                      <TableCell className="text-slate-400">{product.batchNumber || '-'}</TableCell>
+                      <TableCell className="text-slate-400">{product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : 'N/A'}</TableCell>
                       <TableCell>
-                        <Link href={`/products/${product.id}`}>
+                        <Link href={`/products/${product._id}`}>
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -567,8 +594,8 @@ export default function OrganizationDetailPage() {
               </Table>
               <Pagination
                 currentPage={productPage}
-                totalPages={Math.ceil(mockProducts.length / 10)}
-                totalItems={mockProducts.length}
+                totalPages={Math.ceil(orgProducts.length / 10)}
+                totalItems={orgProducts.length}
                 itemsPerPage={10}
                 onPageChange={setProductPage}
               />
@@ -580,7 +607,7 @@ export default function OrganizationDetailPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Documents ({mockDocuments.length})</CardTitle>
+                <CardTitle>Documents ({documents.length})</CardTitle>
                 <PermissionGate permission={AdminPermission.DOC_APPROVE}>
                   <Button variant="secondary" size="sm">
                     <FileText className="h-4 w-4 mr-2" />
@@ -591,7 +618,7 @@ export default function OrganizationDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {mockDocuments.map((doc) => (
+                {documents.map((doc: Document) => (
                   <div key={doc.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 rounded-xl bg-slate-600/50 flex items-center justify-center">
@@ -628,7 +655,7 @@ export default function OrganizationDetailPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Team Members ({mockMembers.length})</CardTitle>
+                <CardTitle>Team Members ({members.length})</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
@@ -643,7 +670,7 @@ export default function OrganizationDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockMembers.map((member) => (
+                  {members.map((member: Member) => (
                     <TableRow key={member.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -655,7 +682,7 @@ export default function OrganizationDetailPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 text-xs font-medium rounded ${roleColors[member.role]}`}>
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${roleColors[member.role as keyof typeof roleColors] || 'bg-slate-500/20 text-slate-400'}`}>
                           {member.role}
                         </span>
                       </TableCell>
@@ -687,20 +714,20 @@ export default function OrganizationDetailPage() {
               <div className="relative">
                 <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-700" />
                 <div className="space-y-6">
-                  {mockActivity.map((activity, index) => (
-                    <div key={activity.id} className="relative flex gap-4 pl-10">
+                  {activity.map((act: Activity) => (
+                    <div key={act.id} className="relative flex gap-4 pl-10">
                       <div className="absolute left-2.5 h-3 w-3 rounded-full bg-amber-500 ring-4 ring-slate-800" />
                       <div className="flex-1 bg-slate-700/30 rounded-xl p-4">
                         <div className="flex items-start justify-between">
                           <div>
-                            <p className="font-medium text-white">{activity.action}</p>
-                            <p className="text-sm text-slate-400 mt-1">{activity.description}</p>
+                            <p className="font-medium text-white">{act.action}</p>
+                            <p className="text-sm text-slate-400 mt-1">{act.description}</p>
                           </div>
                           <span className="text-xs text-slate-500">
-                            {new Date(activity.timestamp).toLocaleString()}
+                            {new Date(act.timestamp).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-2">by {activity.actor}</p>
+                        <p className="text-xs text-slate-500 mt-2">by {act.actor}</p>
                       </div>
                     </div>
                   ))}
@@ -723,8 +750,7 @@ export default function OrganizationDetailPage() {
             <div>
               <p className="text-sm font-medium text-red-400">Warning: This action is immediate</p>
               <p className="text-sm text-slate-400 mt-1">
-                Suspending {org.name} will disable all {mockProducts.length} products and prevent 
-                {mockMembers.length} team members from accessing the platform.
+                Suspending {org.name} will disable all {orgProducts.length} products and prevent {members.length} team members from accessing the platform.
               </p>
             </div>
           </div>

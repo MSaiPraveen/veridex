@@ -15,10 +15,36 @@ export const AuthUserSchema = new Schema(
   {
     email: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
-    role: { type: String, required: true, enum: ['CONSUMER', 'MERCHANT', 'ADMIN'] },
+    role: { type: String, required: true, enum: ['CONSUMER', 'MERCHANT', 'ADMIN', 'SUPER_ADMIN'] },
+    organizationId: { type: String },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
+);
+
+// Admin User Schema (separate collection for admin portal authentication)
+export const AdminUserSchema = new Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true },
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    role: { type: String, enum: ['SUPER_ADMIN', 'ADMIN', 'COMPLIANCE_REVIEWER', 'VIEWER'], required: true },
+    status: { type: String, enum: ['ACTIVE', 'PENDING_MFA', 'LOCKED', 'DEACTIVATED'], default: 'ACTIVE' },
+    mfaEnabled: { type: Boolean, default: false },
+    mfaSecret: { type: String },
+    mfaBackupCodes: { type: [String] },
+    allowedIPs: { type: [String], default: [] },
+    lastLoginAt: Date,
+    lastLoginIP: String,
+    failedLoginAttempts: { type: Number, default: 0 },
+    lockedUntil: Date,
+    passwordChangedAt: Date,
+    createdBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
+    deactivatedAt: Date,
+    deactivatedBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
+  },
+  { timestamps: true, collection: 'admin_users' }
 );
 
 // ============================================================
@@ -29,7 +55,7 @@ export const UserProfileSchema = new Schema(
   {
     authUserId: { type: String, required: true, unique: true },
     email: { type: String, required: true },
-    role: { type: String, required: true, enum: ['CONSUMER', 'MERCHANT', 'ADMIN'] },
+    role: { type: String, required: true, enum: ['CONSUMER', 'MERCHANT', 'ADMIN', 'SUPER_ADMIN'] },
     firstName: { type: String },
     lastName: { type: String },
     isActive: { type: Boolean, default: true },
@@ -126,6 +152,10 @@ DocumentSchema.index({ type: 1 });
 
 export function getAuthUserModel(conn: Connection) {
   return conn.models.User || conn.model('User', AuthUserSchema);
+}
+
+export function getAdminUserModel(conn: Connection) {
+  return conn.models.AdminUser || conn.model('AdminUser', AdminUserSchema);
 }
 
 export function getUserProfileModel(conn: Connection) {

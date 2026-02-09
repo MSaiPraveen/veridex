@@ -335,3 +335,40 @@ export async function emitAdminReviewRequired(doc: IDocument, complianceResult: 
   }
 }
 
+// ================== DOCUMENT REVIEW DECISION EVENT ==================
+
+/**
+ * Emit event when admin makes a review decision on a document
+ * This triggers product compliance recalculation
+ */
+export async function emitDocumentReviewDecision(event: {
+  documentId: string;
+  productId?: string;
+  organizationId: string;
+  documentType: string;
+  decision: 'APPROVED' | 'REJECTED' | 'FLAGGED';
+  reviewedBy: string;
+  reviewNote?: string;
+}): Promise<void> {
+  try {
+    const prod = await getProducer();
+    await prod.send({
+      topic: 'document.review.decision',
+      messages: [{
+        key: event.documentId,
+        value: JSON.stringify({
+          eventType: 'DOCUMENT_REVIEW_DECISION',
+          timestamp: new Date().toISOString(),
+          data: {
+            ...event,
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      }],
+    });
+    console.log(`[Document Producer] Emitted DOCUMENT_REVIEW_DECISION: ${event.decision} for ${event.documentId}`);
+  } catch (error) {
+    console.error('[Document Producer] Failed to emit DOCUMENT_REVIEW_DECISION:', error);
+  }
+}
+

@@ -31,10 +31,23 @@ spec:
       labels:
         app: auth-service
     spec:
+      # Security: Run as non-root user
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
         - name: auth-service
-          image: veridex/auth-service:latest
+          image: veridex/auth-service:v1.0.0
           imagePullPolicy: Always
+          # Container security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3001
           envFrom:
@@ -52,6 +65,9 @@ spec:
                 secretKeyRef:
                   name: veridex-secrets
                   key: MONGO_AUTH_URI
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               memory: "128Mi"
@@ -84,6 +100,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
+      # Volumes for read-only filesystem
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 # Pod Disruption Budget - ensure availability during updates
 apiVersion: policy/v1

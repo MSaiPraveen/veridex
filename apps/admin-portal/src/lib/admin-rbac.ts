@@ -5,9 +5,12 @@
  * IMPORTANT: These are for UI display only - backend enforces all permissions.
  */
 
-// Admin Roles - Simplified to single ADMIN role
+// Admin Roles - Must match backend roles from auth-service
 export enum AdminRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  COMPLIANCE_REVIEWER = 'COMPLIANCE_REVIEWER',
+  VIEWER = 'VIEWER',
 }
 
 // Admin Permissions
@@ -19,6 +22,10 @@ export enum AdminPermission {
   ORG_REJECT = 'org.reject',
   ORG_SUSPEND = 'org.suspend',
   ORG_REACTIVATE = 'org.reactivate',
+  
+  // Users
+  USERS_READ = 'users.read',
+  USERS_MANAGE = 'users.manage',
   
   // Document
   DOC_READ = 'doc.read',
@@ -139,16 +146,31 @@ export interface AdminUser {
 
 // Role display info with Tailwind class names for theming
 export const ROLE_DISPLAY_INFO: Record<AdminRole, { label: string; description: string; colorClass: string }> = {
+  [AdminRole.SUPER_ADMIN]: {
+    label: 'Super Administrator',
+    description: 'Full system access with all permissions',
+    colorClass: 'text-red-500 dark:text-red-400',
+  },
   [AdminRole.ADMIN]: {
     label: 'Administrator',
     description: 'Full platform access - organization, product, and compliance management',
     colorClass: 'text-amber-500 dark:text-amber-400',
   },
+  [AdminRole.COMPLIANCE_REVIEWER]: {
+    label: 'Compliance Reviewer',
+    description: 'Review and approve compliance documents',
+    colorClass: 'text-blue-500 dark:text-blue-400',
+  },
+  [AdminRole.VIEWER]: {
+    label: 'Viewer',
+    description: 'Read-only access to view data',
+    colorClass: 'text-gray-500 dark:text-gray-400',
+  },
 };
 
 /**
  * Check if user has a specific permission
- * ADMIN role has all permissions
+ * SUPER_ADMIN and ADMIN roles have all permissions
  */
 export function hasPermission(
   user: AdminUser | null,
@@ -156,8 +178,8 @@ export function hasPermission(
 ): boolean {
   if (!user) return false;
   
-  // ADMIN has all permissions
-  if (user.role === AdminRole.ADMIN) return true;
+  // SUPER_ADMIN and ADMIN have all permissions
+  if (user.role === AdminRole.SUPER_ADMIN || user.role === AdminRole.ADMIN) return true;
   
   // Check explicit permissions
   if (user.permissions?.includes(permission)) return true;
@@ -198,7 +220,10 @@ export function isRoleAtLeast(
   if (!user) return false;
   
   const hierarchy: Record<AdminRole, number> = {
-    [AdminRole.ADMIN]: 1,
+    [AdminRole.SUPER_ADMIN]: 4,
+    [AdminRole.ADMIN]: 3,
+    [AdminRole.COMPLIANCE_REVIEWER]: 2,
+    [AdminRole.VIEWER]: 1,
   };
   
   return hierarchy[user.role] >= hierarchy[minimumRole];
@@ -254,6 +279,12 @@ export const ADMIN_NAVIGATION: NavItem[] = [
     href: '/merchants',
     icon: 'Store',
     permissions: [AdminPermission.ORG_READ],
+  },
+  {
+    label: 'Consumers',
+    href: '/consumers',
+    icon: 'Users',
+    permissions: [AdminPermission.USERS_READ],
   },
   {
     label: 'Organizations',

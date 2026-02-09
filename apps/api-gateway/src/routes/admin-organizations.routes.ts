@@ -237,4 +237,16 @@ export async function adminOrganizationRoutes(app: FastifyInstance) {
   }, async (request, reply) => {
     return proxyToService(request, reply, services.userOrg, 'GET', '/organizations/stats');
   });
+
+  /**
+   * GET /admin/organizations/:id/members
+   * Get organization members
+   * Permission: org.read
+   */
+  app.get<{ Params: { id: string } }>('/admin/organizations/:id/members', {
+    preHandler: AdminGuards.canReadOrganizations,
+    preValidation: validateRequest({ params: orgIdParams }),
+  }, async (request, reply) => {
+    return proxyToService(request, reply, services.userOrg, 'GET', `/organizations/${request.params.id}/members`);
+  });
 }

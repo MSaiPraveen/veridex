@@ -16,6 +16,8 @@ export type DocumentType =
 export type ExtractionStatus = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
 export type DocumentStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
 export type VisibilityLevel = 'PRIVATE' | 'ORGANIZATION' | 'PUBLIC';
+export type ReviewStatus = 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'FLAGGED';
+export type ComplianceStatus = 'PENDING' | 'COMPLIANT' | 'NON_COMPLIANT' | 'NEEDS_REVIEW';
 
 export interface IExtractedData {
   validUntil?: Date;
@@ -38,9 +40,9 @@ export interface IDocument extends MongoDocument {
   _id: Types.ObjectId;
   
   // Ownership
-  ownerId: Types.ObjectId; // User ID
-  organizationId: Types.ObjectId;
-  productId?: Types.ObjectId;
+  ownerId: string; // Organization ID stored as string
+  organizationId?: string;
+  productId?: string;
   
   // Document Info
   name: string;
@@ -59,6 +61,15 @@ export interface IDocument extends MongoDocument {
   extractionStatus: ExtractionStatus;
   extractedAt?: Date;
   failureReason?: string;
+  
+  // Review & Compliance
+  reviewStatus: ReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNote?: string;
+  complianceStatus: ComplianceStatus;
+  complianceScore?: number;
+  complianceReasons?: string[];
   
   // Status & Visibility
   status: DocumentStatus;
@@ -102,9 +113,9 @@ const ExtractedDataSchema = new Schema({
 const DocumentSchema = new Schema<IDocument>(
   {
     // Ownership
-    ownerId: { type: Schema.Types.ObjectId, required: true, index: true },
-    organizationId: { type: Schema.Types.ObjectId, required: true, index: true },
-    productId: { type: Schema.Types.ObjectId, index: true },
+    ownerId: { type: String, required: true, index: true },
+    organizationId: { type: String, index: true },
+    productId: { type: String, index: true },
     
     // Document Info
     name: { type: String, required: true, trim: true, maxlength: 255 },
@@ -133,6 +144,25 @@ const DocumentSchema = new Schema<IDocument>(
     },
     extractedAt: { type: Date },
     failureReason: { type: String },
+    
+    // Review & Compliance
+    reviewStatus: {
+      type: String,
+      enum: ['PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FLAGGED'],
+      default: 'PENDING_REVIEW',
+      index: true,
+    },
+    reviewedBy: { type: String },
+    reviewedAt: { type: Date },
+    reviewNote: { type: String, maxlength: 1000 },
+    complianceStatus: {
+      type: String,
+      enum: ['PENDING', 'COMPLIANT', 'NON_COMPLIANT', 'NEEDS_REVIEW'],
+      default: 'PENDING',
+      index: true,
+    },
+    complianceScore: { type: Number, min: 0, max: 100 },
+    complianceReasons: [{ type: String }],
     
     // Status & Visibility
     status: {

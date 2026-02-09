@@ -1,15 +1,22 @@
 import Fastify, { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 import fastifyCors from '@fastify/cors';
 import { ZodError } from 'zod';
-import { verifyToken } from './auth/jwt';
+import { verifyToken, verifyAnyToken } from './auth/jwt';
 import { requestIdPlugin } from './plugins/request-id';
 import { rateLimitPlugin } from './plugins/rate-limit';
+import { helmetPlugin } from './plugins/helmet';
+import { httpsEnforcementPlugin } from './plugins/https-enforcement';
+import apiVersionPlugin, { getVersionInfo } from './plugins/api-versioning';
+import idempotencyPlugin from './plugins/idempotency';
+import openApiPlugin from './plugins/openapi';
 import validationPlugin, { formatZodError } from './plugins/validation';
 import userContextPlugin from './plugins/user-context';
 import ipWhitelistPlugin from './plugins/ip-whitelist';
 import adminSecurityPlugin from './plugins/admin-security';
+import metricsPlugin from './plugins/metrics';
 
 import { authRoutes } from './routes/auth.routes';
+import { adminAuthRoutes } from './routes/admin-auth.routes';
 import { userRoutes } from './routes/user.routes';
 import { productRoutes } from './routes/product.routes';
 import { documentRoutes } from './routes/document.routes';
@@ -21,35 +28,61 @@ import { adminDocumentReviewRoutes } from './routes/admin-document-review.routes
 import { adminWorkflowRoutes } from './routes/admin-workflows.routes';
 import { adminComplianceRoutes } from './routes/admin-compliance.routes';
 
+import { env } from './config/env';
+
 export async function buildApp() {
+  const isProduction = env.NODE_ENV === 'production';
+  
   const app = Fastify({
     logger: true,
     requestIdHeader: 'x-request-id',
+    // Trust proxy headers when behind load balancer
+    trustProxy: isProduction,
   });
 
+  // Security: HTTPS enforcement (runs first in production)
+  await app.register(httpsEnforcementPlugin);
+  
+  // Security: Helmet security headers
+  await app.register(helmetPlugin);
+
+  // Build CORS origins list - no localhost in production
+  const corsOrigins = isProduction
+    ? [
+        env.FRONTEND_URL,
+        env.ADMIN_FRONTEND_URL,
+        ...env.ALLOWED_ORIGINS,
+      ].filter(Boolean)
+    : [
+        // Development origins
+        'http://localhost:3000',
+        'http://localhost:3008',
+        'http://localhost:4000',
+        env.FRONTEND_URL,
+        env.ADMIN_FRONTEND_URL,
+      ].filter(Boolean);
+
   // CORS support for frontend portals
-  // NOTE: Admin portal (localhost:4000) is on separate origin
   await app.register(fastifyCors as unknown as Parameters<typeof app.register>[0], {
-    origin: [
-      // Main frontend (Consumer + Merchant)
-      'http://localhost:3000',
-      'http://localhost:3008',
-      process.env.FRONTEND_URL || '',
-      // Admin portal (separate app)
-      'http://localhost:4000',
-      process.env.ADMIN_FRONTEND_URL || '',
-      // Production domains
-      'https://veridex.com',
-      'https://admin.veridex.io',
-    ].filter(Boolean),
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Admin-Portal'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Admin-Portal', 'X-Idempotency-Key', 'X-API-Version'],
+    exposedHeaders: ['X-API-Version', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   });
 
   await app.register(requestIdPlugin);
   await app.register(rateLimitPlugin);
+  await app.register(apiVersionPlugin);
+  await app.register(idempotencyPlugin);
+  await app.register(openApiPlugin);
   await app.register(validationPlugin);
+  
+  // Prometheus metrics endpoint
+  await app.register(metricsPlugin, {
+    serviceName: 'api-gateway',
+    serviceVersion: '1.0.0',
+  });
 
   // JWT extraction hook - MUST run before admin security plugin
   app.addHook('preHandler', async (req) => {
@@ -57,10 +90,11 @@ export async function buildApp() {
     if (!auth) return;
 
     const token = auth.replace('Bearer ', '');
-    try {
-      req.user = verifyToken(token);
-    } catch {
-      // Token verification failed - user stays undefined
+    
+    // Try to verify with both secrets (admin and regular user)
+    const user = verifyAnyToken(token);
+    if (user) {
+      req.user = user;
     }
   });
 
@@ -132,8 +166,15 @@ export async function buildApp() {
     timestamp: new Date().toISOString(),
   }));
 
+  /**
+   * API Version Info endpoint
+   */
+  app.get('/api/version', async () => getVersionInfo());
+  app.get('/api/versions', async () => getVersionInfo());
+
   // Register all routes
   await app.register(authRoutes);
+  await app.register(adminAuthRoutes);
   await app.register(userRoutes);
   await app.register(productRoutes);
   await app.register(documentRoutes);

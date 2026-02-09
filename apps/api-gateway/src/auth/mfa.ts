@@ -14,7 +14,26 @@ const TOTP_ALGORITHM = 'sha1';
 
 // Encryption for storing secrets
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
-const ENCRYPTION_KEY = process.env.MFA_ENCRYPTION_KEY || 'default-dev-key-change-in-prod!!';
+
+/**
+ * Get the MFA encryption key from environment
+ * CRITICAL: This key is required in production to encrypt MFA secrets
+ */
+function getEncryptionKey(): string {
+  const key = process.env.MFA_ENCRYPTION_KEY;
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('MFA_ENCRYPTION_KEY environment variable is required in production');
+    }
+    // Only allow fallback in development with a warning
+    console.warn('⚠️  WARNING: Using development MFA encryption key. Set MFA_ENCRYPTION_KEY in production!');
+    return 'dev-only-key-do-not-use-in-production';
+  }
+  if (key.length < 32) {
+    throw new Error('MFA_ENCRYPTION_KEY must be at least 32 characters long');
+  }
+  return key;
+}
 
 /**
  * Generate a random base32 secret for TOTP
@@ -112,7 +131,8 @@ function generateTotp(secret: string, timeStep: number): string {
  */
 export function encryptSecret(secret: string): string {
   const iv = crypto.randomBytes(16);
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const encryptionKey = getEncryptionKey();
+  const key = crypto.scryptSync(encryptionKey, 'salt', 32);
   const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
   
   let encrypted = cipher.update(secret, 'utf8', 'hex');
@@ -132,7 +152,8 @@ export function decryptSecret(encryptedData: string): string {
   
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const encryptionKey = getEncryptionKey();
+  const key = crypto.scryptSync(encryptionKey, 'salt', 32);
   
   const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);

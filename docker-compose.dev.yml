@@ -1,0 +1,46 @@
+# ==============================================================================
+# VERIDEX - Docker Compose Development Override
+# ==============================================================================
+# Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ==============================================================================
+
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile.dev
+    volumes:
+      # Mount source for hot reloading
+      - ./apps/auth-service/src:/app/apps/auth-service/src:ro
+      - ./packages:/app/packages:ro
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile.dev
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=development
+      - JWT_SECRET=${JWT_ACCESS_SECRET:-jwt-secret-change-in-production}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-admin-jwt-secret-change-in-production}
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BROKERS=kafka:9092
+      - DOCKER_ENV=true
+      - FRONTEND_URL=http://localhost:3000
+      - ADMIN_FRONTEND_URL=http://localhost:4000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-org-service:3003
+      - PRODUCT_SERVICE_URL=http://product-service:3004
+      - DOCUMENT_SERVICE_URL=http://document-service:3005
+      - COMPLIANCE_SERVICE_URL=http://compliance-service:3006
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3007
+      - AUDIT_SERVICE_URL=http://audit-log-service:3008
+    depends_on:
+      - redis
+      - auth-service
+    volumes:
+      # Mount source for hot reloading
+      - ./apps/api-gateway/src:/app/apps/api-gateway/src:ro
+      - ./packages:/app/packages:ro

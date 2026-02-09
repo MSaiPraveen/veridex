@@ -27,7 +27,8 @@ import {
   AlertOctagon,
   TrendingUp,
   FileOutput,
-  Server
+  Server,
+  User
 } from 'lucide-react';
 import { ADMIN_NAVIGATION, ROLE_DISPLAY_INFO, AdminRole } from '@/lib/admin-rbac';
 import { useAdminPermissions } from '@/components/auth/permission-gate';
@@ -56,6 +57,7 @@ const iconMap: Record<string, React.ReactNode> = {
   'TrendingUp': <TrendingUp className="h-5 w-5" />,
   'FileOutput': <FileOutput className="h-5 w-5" />,
   'Server': <Server className="h-5 w-5" />,
+  'Users': <Users className="h-5 w-5" />,
 };
 
 interface AdminSidebarProps {

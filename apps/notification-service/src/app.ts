@@ -1,6 +1,8 @@
 import Fastify, { FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 import mongoose from 'mongoose';
 import { notificationRoutes } from './routes/notification.routes';
+import { registerWebSocketRoute } from './services/websocket.service';
+import { registerSSERoutes } from './services/sse.service';
 import { AppError } from './errors/service.errors';
 
 const startTime = Date.now();
@@ -60,6 +62,16 @@ app.get('/health', async () => ({ status: 'ok', service: 'notification-service' 
 
 // Register routes
 app.register(notificationRoutes);
+
+// Register WebSocket support
+registerWebSocketRoute(app).catch((err) => {
+  console.error('Failed to register WebSocket routes:', err);
+});
+
+// Register SSE support
+registerSSERoutes(app).catch((err) => {
+  console.error('Failed to register SSE routes:', err);
+});
 
 // Global error handler
 app.setErrorHandler((error: FastifyError | AppError, request: FastifyRequest, reply: FastifyReply) => {

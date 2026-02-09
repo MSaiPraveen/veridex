@@ -1,11 +1,9 @@
 import 'dotenv/config';
-import { z } from 'zod';
+import { requireEnv, getEnv } from '@veridex/shared';
 
-const envSchema = z.object({
-  PORT: z.string().default('3005'),
-  MONGO_URI: z.string(),
-  KAFKA_BROKER: z.string(),
-  FILE_STORAGE_PATH: z.string(),
-});
-
-export const env = envSchema.parse(process.env);
+export const env = {
+  PORT: getEnv('PORT', '3005'),
+  MONGO_URI: requireEnv('MONGO_URI', 'mongodb://localhost:27017/veridex_documents'),
+  KAFKA_BROKER: getEnv('KAFKA_BROKER', 'localhost:9092'),
+  FILE_STORAGE_PATH: getEnv('FILE_STORAGE_PATH', './uploads'),
+};

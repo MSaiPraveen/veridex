@@ -167,16 +167,19 @@ export default function DocumentsPage() {
           });
         }
         setLastRefresh(new Date());
+        setError(null);
       } else {
-        // Fallback to mock data for demo
-        setDocuments(getMockDocuments());
-        setStats({ total: 8, pendingReview: 3, approved: 3, rejected: 1, flagged: 1, extractionFailed: 0 });
+        // Show error - NO MOCK FALLBACKS
+        setError('Failed to load documents. Please check API connection.');
+        setDocuments([]);
+        setStats({ total: 0, pendingReview: 0, approved: 0, rejected: 0, flagged: 0, extractionFailed: 0 });
       }
     } catch (err) {
       console.error('Failed to fetch documents:', err);
-      // Use mock data on error
-      setDocuments(getMockDocuments());
-      setStats({ total: 8, pendingReview: 3, approved: 3, rejected: 1, flagged: 1, extractionFailed: 0 });
+      // Show error - NO MOCK FALLBACKS
+      setError(`Failed to fetch documents: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setDocuments([]);
+      setStats({ total: 0, pendingReview: 0, approved: 0, rejected: 0, flagged: 0, extractionFailed: 0 });
     } finally {
       setLoading(false);
     }
@@ -670,118 +673,4 @@ export default function DocumentsPage() {
       </Modal>
     </div>
   );
-}
-
-// Mock data for development/demo
-function getMockDocuments(): Document[] {
-  return [
-    {
-      id: 'doc-001',
-      fileName: 'Lab_Report_Batch_2024-Q4-142.pdf',
-      documentType: 'LAB_REPORT',
-      organizationId: 'org-001',
-      organizationName: 'GreenLeaf Labs',
-      productId: 'prod-001',
-      productName: 'Premium CBD Tincture',
-      status: 'PENDING_REVIEW',
-      complianceStatus: 'PENDING',
-      uploadedAt: '2026-01-03T14:30:00Z',
-      fileSize: 2450000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-002',
-      fileName: 'Business_License_GreenLeaf.pdf',
-      documentType: 'BUSINESS_LICENSE',
-      organizationId: 'org-001',
-      organizationName: 'GreenLeaf Labs',
-      status: 'APPROVED',
-      uploadedAt: '2025-12-29T10:00:00Z',
-      reviewedAt: '2025-12-30T11:00:00Z',
-      reviewedBy: 'admin@veridex.io',
-      fileSize: 1200000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-003',
-      fileName: 'COA_Full_Spectrum_Oil_1000mg.pdf',
-      documentType: 'COA',
-      organizationId: 'org-002',
-      organizationName: 'Pure Wellness Co',
-      productId: 'prod-005',
-      productName: 'Full Spectrum Oil 1000mg',
-      status: 'REJECTED',
-      complianceStatus: 'NON_COMPLIANT',
-      uploadedAt: '2025-12-28T16:45:00Z',
-      reviewedAt: '2025-12-29T09:00:00Z',
-      reviewNote: 'THC levels exceed legal limit (0.45% detected, 0.3% max allowed)',
-      fileSize: 3100000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-004',
-      fileName: 'Safety_Data_Sheet_CBD_Isolate.pdf',
-      documentType: 'SAFETY_SHEET',
-      organizationId: 'org-003',
-      organizationName: 'Herbal Remedies Inc',
-      productId: 'prod-010',
-      productName: 'CBD Isolate Powder',
-      status: 'PENDING_REVIEW',
-      uploadedAt: '2026-01-02T09:15:00Z',
-      fileSize: 890000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-005',
-      fileName: 'Oregon_Compliance_Certificate.pdf',
-      documentType: 'COMPLIANCE_CERT',
-      organizationId: 'org-002',
-      organizationName: 'Pure Wellness Co',
-      status: 'APPROVED',
-      uploadedAt: '2025-12-27T11:20:00Z',
-      reviewedAt: '2025-12-27T15:00:00Z',
-      fileSize: 560000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-006',
-      fileName: 'Gummies_Lab_Analysis.pdf',
-      documentType: 'LAB_REPORT',
-      organizationId: 'org-001',
-      organizationName: 'GreenLeaf Labs',
-      productId: 'prod-003',
-      productName: 'Full Spectrum Gummies',
-      status: 'FLAGGED',
-      complianceStatus: 'NEEDS_REVIEW',
-      uploadedAt: '2025-12-31T08:00:00Z',
-      reviewNote: 'Unusual heavy metal readings - requires secondary verification',
-      fileSize: 1850000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-007',
-      fileName: 'Hemp_Flower_COA.pdf',
-      documentType: 'COA',
-      organizationId: 'org-003',
-      organizationName: 'Herbal Remedies Inc',
-      productId: 'prod-015',
-      productName: 'Hemp Flower - Sour Diesel',
-      status: 'PENDING_REVIEW',
-      uploadedAt: '2026-01-01T12:00:00Z',
-      fileSize: 2200000,
-      mimeType: 'application/pdf',
-    },
-    {
-      id: 'doc-008',
-      fileName: 'State_License_Renewal.pdf',
-      documentType: 'LICENSE',
-      organizationId: 'org-002',
-      organizationName: 'Pure Wellness Co',
-      status: 'APPROVED',
-      uploadedAt: '2025-12-20T14:30:00Z',
-      reviewedAt: '2025-12-21T10:00:00Z',
-      fileSize: 980000,
-      mimeType: 'application/pdf',
-    },
-  ];
 }

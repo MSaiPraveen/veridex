@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply, preHandlerHookHandler } from 'fastify';
 import { z } from 'zod';
 import { ProductService } from '../services/product.service';
+import { BulkImportService } from '../services/bulk-import.service';
 import {
   createProductSchema,
   updateProductSchema,
@@ -334,28 +335,127 @@ export async function productRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /products/:id - Update a product
+   * Ownership verification: Merchants can only update their organization's products
    */
   app.patch('/products/:id', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
     const input = validate(updateProductSchema, request.body);
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only update products belonging to your organization' 
+        });
+      }
+    }
+    
     const product = await ProductService.update(id, input as any);
     return reply.send({ success: true, data: product });
   });
 
   /**
    * DELETE /products/:id - Deactivate a product
+   * Ownership verification: Merchants can only delete their organization's products
    */
   app.delete('/products/:id', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only delete products belonging to your organization' 
+        });
+      }
+    }
+    
     await ProductService.deactivate(id);
     return reply.send({ success: true, message: 'Product deactivated' });
   });
 
   /**
+   * POST /products/batch - Get multiple products by IDs
+   * Used for enriching document data with product names
+   * Protected: Admin only (internal service use)
+   */
+  app.post('/products/batch', { preHandler: adminOnly }, async (request, reply) => {
+    const schema = z.object({
+      ids: z.array(z.string().regex(/^[a-f\d]{24}$/i)).min(1).max(100),
+    });
+    
+    const result = schema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ 
+        success: false, 
+        error: result.error.issues.map(i => i.message).join(', ') 
+      });
+    }
+    
+    const { ids } = result.data;
+    
+    // Fetch products by IDs
+    const products = await ProductService.getByIds(ids);
+    
+    // Return a map of id -> product info for easy lookup
+    const productMap: Record<string, { name: string; sku: string; category: string }> = {};
+    for (const product of products) {
+      const id = (product as any)._id?.toString();
+      if (id) {
+        productMap[id] = { 
+          name: product.name, 
+          sku: product.sku,
+          category: product.category
+        };
+      }
+    }
+    
+    return reply.send({ success: true, data: productMap });
+  });
+
+  /**
    * POST /products/:id/archive - Archive a product
+   * Ownership verification: Merchants can only archive their organization's products
    */
   app.post('/products/:id/archive', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only archive products belonging to your organization' 
+        });
+      }
+    }
+    
     const product = await ProductService.archive(id);
     return reply.send({ success: true, data: product });
   });
@@ -364,10 +464,30 @@ export async function productRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /products/:id/status - Update product status
+   * Ownership verification: Merchants can only update their organization's products
    */
   app.patch('/products/:id/status', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
     const { status } = request.body as { status: string };
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only update products belonging to your organization' 
+        });
+      }
+    }
+    
     const product = await ProductService.updateStatus(id, status as any);
     return reply.send({ success: true, data: product });
   });
@@ -398,9 +518,27 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /products/pending-compliance - Alias for compliance/pending (admin gateway)
+   */
+  app.get('/products/pending-compliance', { preHandler: adminOnly }, async (request, reply) => {
+    const { organizationId } = request.query as { organizationId?: string };
+    const products = await ProductService.getPendingCompliance(organizationId);
+    return reply.send({ success: true, data: products });
+  });
+
+  /**
    * GET /products/compliance/non-compliant - Get non-compliant products
    */
   app.get('/products/compliance/non-compliant', { preHandler: adminOnly }, async (request, reply) => {
+    const { organizationId } = request.query as { organizationId?: string };
+    const products = await ProductService.getNonCompliant(organizationId);
+    return reply.send({ success: true, data: products });
+  });
+
+  /**
+   * GET /products/non-compliant - Alias for compliance/non-compliant (admin gateway)
+   */
+  app.get('/products/non-compliant', { preHandler: adminOnly }, async (request, reply) => {
     const { organizationId } = request.query as { organizationId?: string };
     const products = await ProductService.getNonCompliant(organizationId);
     return reply.send({ success: true, data: products });
@@ -410,20 +548,60 @@ export async function productRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /products/:id/inventory - Update inventory
+   * Ownership verification: Merchants can only update their organization's products
    */
   app.patch('/products/:id/inventory', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
     const input = validate(inventoryUpdateSchema, request.body);
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only update inventory for products belonging to your organization' 
+        });
+      }
+    }
+    
     const product = await ProductService.updateInventory(id, input.quantity, input.reason);
     return reply.send({ success: true, data: product });
   });
 
   /**
    * POST /products/:id/inventory/adjust - Adjust inventory (increment/decrement)
+   * Ownership verification: Merchants can only adjust their organization's products
    */
   app.post('/products/:id/inventory/adjust', { preHandler: merchantOrAdmin }, async (request, reply) => {
     const { id } = (request.params as { id: string });
     const { adjustment, reason } = request.body as { adjustment: number; reason?: string };
+    const userContext = getUserContext(request);
+    
+    // Get existing product to verify ownership
+    const existingProduct = await ProductService.getById(id);
+    if (!existingProduct) {
+      return reply.status(404).send({ success: false, error: 'Product not found' });
+    }
+    
+    // Ownership verification for non-admins
+    if (userContext?.role !== 'ADMIN' && userContext?.role !== 'SUPER_ADMIN') {
+      const productOrgId = (existingProduct as any).organizationId?.toString();
+      if (productOrgId && productOrgId !== userContext?.organizationId) {
+        return reply.status(403).send({ 
+          success: false, 
+          error: 'Access denied: You can only adjust inventory for products belonging to your organization' 
+        });
+      }
+    }
+    
     const product = await ProductService.adjustInventory(id, adjustment, reason);
     return reply.send({ success: true, data: product });
   });
@@ -464,13 +642,105 @@ export async function productRoutes(app: FastifyInstance) {
     return reply.send({ success: true, data: products });
   });
 
-  // ================== HEALTH CHECK ==================
+  /**
+   * GET /products/organization/:organizationId - Alias for admin gateway
+   */
+  app.get('/products/organization/:organizationId', { preHandler: authRequired }, async (request, reply) => {
+    const { organizationId } = (request.params as { organizationId: string });
+    const products = await ProductService.getByOrganization(organizationId);
+    return reply.send({ success: true, data: products });
+  });
 
-  app.get('/health', async (_request, reply) => {
-    return reply.send({
-      status: 'ok',
-      service: 'product-service',
-      timestamp: new Date().toISOString(),
+  // ================== BULK IMPORT ==================
+
+  /**
+   * POST /products/bulk-import/csv - Bulk import products from CSV
+   * Protected: Merchants and Admins only
+   */
+  app.post('/products/bulk-import/csv', { preHandler: merchantOrAdmin }, async (request, reply) => {
+    const userContext = getUserContext(request);
+    
+    if (!userContext?.organizationId && !userContext?.userId) {
+      return reply.status(400).send({ 
+        success: false, 
+        error: 'Organization context is required for bulk import' 
+      });
+    }
+    
+    const body = request.body as { 
+      csvData: string; 
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+      validateOnly?: boolean;
+    };
+    
+    if (!body.csvData || typeof body.csvData !== 'string') {
+      return reply.status(400).send({ 
+        success: false, 
+        error: 'csvData is required' 
+      });
+    }
+    
+    const result = await BulkImportService.importFromCSV(body.csvData, {
+      organizationId: userContext.organizationId || userContext.userId || '',
+      merchantId: userContext.userId || '',
+      skipDuplicates: body.skipDuplicates,
+      updateExisting: body.updateExisting,
+      validateOnly: body.validateOnly,
     });
+    
+    return reply.send({ success: true, data: result });
+  });
+
+  /**
+   * POST /products/bulk-import/json - Bulk import products from JSON
+   * Protected: Merchants and Admins only
+   */
+  app.post('/products/bulk-import/json', { preHandler: merchantOrAdmin }, async (request, reply) => {
+    const userContext = getUserContext(request);
+    
+    if (!userContext?.organizationId && !userContext?.userId) {
+      return reply.status(400).send({ 
+        success: false, 
+        error: 'Organization context is required for bulk import' 
+      });
+    }
+    
+    const body = request.body as { 
+      products: Record<string, unknown>[]; 
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+      validateOnly?: boolean;
+    };
+    
+    if (!body.products || !Array.isArray(body.products)) {
+      return reply.status(400).send({ 
+        success: false, 
+        error: 'products array is required' 
+      });
+    }
+    
+    const result = await BulkImportService.importFromJSON(body.products, {
+      organizationId: userContext.organizationId || userContext.userId || '',
+      merchantId: userContext.userId || '',
+      skipDuplicates: body.skipDuplicates,
+      updateExisting: body.updateExisting,
+      validateOnly: body.validateOnly,
+    });
+    
+    return reply.send({ success: true, data: result });
+  });
+
+  /**
+   * GET /products/bulk-import/template - Get CSV template for bulk import
+   * Public endpoint
+   */
+  app.get('/products/bulk-import/template', async (_request, reply) => {
+    const template = BulkImportService.generateCSVTemplate();
+    
+    reply.header('Content-Type', 'text/csv');
+    reply.header('Content-Disposition', 'attachment; filename="product-import-template.csv"');
+    
+    return reply.send(template);
   });
 }

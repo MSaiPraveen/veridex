@@ -52,11 +52,31 @@ export const ProductRepo = {
   },
 
   /**
+   * Find multiple products by IDs (for batch lookup)
+   */
+  async findByIds(ids: string[]): Promise<LeanProduct[]> {
+    const objectIds = ids.map(id => new mongoose.Types.ObjectId(id));
+    return ProductModel.find({ 
+      _id: { $in: objectIds } 
+    }).select('_id name sku category').lean() as Promise<LeanProduct[]>;
+  },
+
+  /**
    * Find product by SKU for a merchant
    */
   async findBySku(merchantId: string, sku: string): Promise<LeanProduct | null> {
     return ProductModel.findOne({
       merchantId,
+      sku: sku.toUpperCase()
+    }).lean() as Promise<LeanProduct | null>;
+  },
+
+  /**
+   * Find product by SKU within an organization
+   */
+  async findBySkuAndOrg(sku: string, organizationId: string): Promise<LeanProduct | null> {
+    return ProductModel.findOne({
+      organizationId,
       sku: sku.toUpperCase()
     }).lean() as Promise<LeanProduct | null>;
   },

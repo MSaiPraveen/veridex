@@ -10,7 +10,7 @@
 const ADMIN_TOKEN_KEY = 'admin_access_token';
 const ADMIN_REFRESH_KEY = 'admin_refresh_token';
 
-// Admin portal API base URL
+// Admin portal API base URL - connects to API Gateway (port 3002 in Docker)
 const API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:3002';
 
 /**

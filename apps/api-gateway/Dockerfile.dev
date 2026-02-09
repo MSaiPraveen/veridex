@@ -1,0 +1,44 @@
+# ===============================================
+# API Gateway - Development Dockerfile
+# Uses ts-node-dev for hot reloading
+# ===============================================
+
+FROM node:20-alpine
+
+# Install tini for proper signal handling
+RUN apk add --no-cache tini
+
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY packages/roles-permissions/package.json ./packages/roles-permissions/
+COPY packages/event-contracts/package.json ./packages/event-contracts/
+COPY packages/api-contracts/package.json ./packages/api-contracts/
+COPY packages/schemas/package.json ./packages/schemas/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/api-gateway/package.json ./apps/api-gateway/
+
+# Copy all package sources for workspace resolution
+COPY packages/ ./packages/
+
+# Copy api-gateway source code
+COPY apps/api-gateway/ ./apps/api-gateway/
+
+# Install all dependencies (including dev dependencies for ts-node)
+RUN npm install --legacy-peer-deps
+
+# Set environment
+ENV NODE_ENV=development
+
+WORKDIR /app/apps/api-gateway
+
+# Expose port
+EXPOSE 3002
+
+# Use tini as entrypoint
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Run with ts-node-dev for development
+CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "-r", "tsconfig-paths/register", "src/main.ts"]

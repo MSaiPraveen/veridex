@@ -1,13 +1,14 @@
 import Fastify, { FastifyInstance, FastifyError, FastifyRequest, FastifyReply } from 'fastify';
 import mongoose from 'mongoose';
 import { authRoutes } from './routes/auth.routes';
+import { adminAuthRoutes } from './routes/admin-auth.routes';
 import { AuthError } from './errors/auth.errors';
 
 // Service start time for uptime calculation
 const startTime = Date.now();
 
 export function buildApp(): FastifyInstance {
-  const app = Fastify({ 
+  const app = Fastify({
     logger: {
       level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     },
@@ -16,7 +17,7 @@ export function buildApp(): FastifyInstance {
   });
 
   // ==================== HEALTH CHECK ROUTES ====================
-  
+
   /**
    * Liveness probe - is the process alive?
    * Used by Kubernetes to determine if the container should be restarted
@@ -48,8 +49,8 @@ export function buildApp(): FastifyInstance {
         isHealthy = false;
       }
     } catch (error) {
-      checks.mongodb = { 
-        status: 'down', 
+      checks.mongodb = {
+        status: 'down',
         message: error instanceof Error ? error.message : 'Unknown error',
         latency: Date.now() - mongoStart,
       };
@@ -116,8 +117,8 @@ export function buildApp(): FastifyInstance {
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: process.env.NODE_ENV === 'production' 
-          ? 'An unexpected error occurred' 
+        message: process.env.NODE_ENV === 'production'
+          ? 'An unexpected error occurred'
           : error.message,
       },
     });
@@ -136,6 +137,7 @@ export function buildApp(): FastifyInstance {
 
   // Register routes
   app.register(authRoutes);
+  app.register(adminAuthRoutes);
 
   return app;
 }

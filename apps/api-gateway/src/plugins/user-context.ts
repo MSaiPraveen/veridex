@@ -45,12 +45,19 @@ async function userContextPlugin(app: FastifyInstance) {
   app.addHook('preHandler', async (request) => {
     // If user is authenticated, add their info to headers for downstream services
     if (request.user) {
-      // These will be forwarded by http-proxy
-      request.headers[USER_HEADERS.USER_ID] = request.user.sub;
-      request.headers[USER_HEADERS.USER_ROLE] = request.user.role;
+      // Use sub or id (admin tokens may have id instead of sub)
+      const userId = request.user.sub || request.user.id;
+      if (userId) {
+        request.headers[USER_HEADERS.USER_ID] = userId;
+      }
       
-      if (request.user.orgId) {
-        request.headers[USER_HEADERS.ORG_ID] = request.user.orgId;
+      if (request.user.role) {
+        request.headers[USER_HEADERS.USER_ROLE] = request.user.role;
+      }
+      
+      const orgId = request.user.orgId || request.user.organizationId;
+      if (orgId) {
+        request.headers[USER_HEADERS.ORG_ID] = orgId;
       }
     }
     
