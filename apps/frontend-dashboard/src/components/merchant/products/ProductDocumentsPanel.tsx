@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Icons } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/modal';
 import { Product } from './types';
-import { Document, useProductDocuments, uploadDocument, deleteDocument } from '@/lib/hooks';
+import { Document, useProductDocuments, deleteDocument } from '@/lib/hooks';
 import { DocumentUploadModal } from '@/components/forms/document-upload';
 
 interface ProductDocumentsPanelProps {

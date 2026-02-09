@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { DashboardLayout, PageHeader } from "@/components/layout";
 import { Icons } from "@/components/ui/icons";
 import { Pagination } from "@/components/ui/table";
@@ -108,7 +109,7 @@ export default function MerchantDocumentsPage() {
     page: "1",
     limit: "100",
   });
-  const products = productsData?.data || [];
+  const products = useMemo(() => productsData?.data || [], [productsData?.data]);
 
   // Fetch all documents
   const docsQuery = useMemo(() => {
@@ -123,7 +124,7 @@ export default function MerchantDocumentsPage() {
   }, [page, search, typeFilter, statusFilter]);
 
   const { data: docsData, isLoading: loadingDocs, error, refetch: refetchDocs } = useDocuments(docsQuery);
-  const documents = docsData?.data || [];
+  const documents = useMemo(() => docsData?.data || [], [docsData?.data]);
 
   // Group documents by product
   const productDocMap = useMemo(() => {
@@ -646,10 +647,10 @@ export default function MerchantDocumentsPage() {
             <div className="card p-12 flex flex-col items-center justify-center">
               <Icons.package size={48} className="text-[var(--foreground-muted)] mb-4" />
               <p className="text-[var(--foreground-muted)] mb-4">No products found</p>
-              <a href="/merchant/products?action=new" className="btn btn-primary">
+              <Link href="/merchant/products?action=new" className="btn btn-primary">
                 <Icons.plus size={16} className="mr-2" />
                 Create Your First Product
-              </a>
+              </Link>
             </div>
           )}
         </div>
